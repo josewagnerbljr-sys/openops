@@ -110,3 +110,4 @@ openops/
 ## Contato
 
 📧 [consultoriablanco8@gmail.com](mailto:consultoriablanco8@gmail.com) · 💼 [LinkedIn](https://www.linkedin.com/in/blancoconsultoria) · 🌐 [chefblanco.com.br](https://chefblanco.com.br/)
+## Teste

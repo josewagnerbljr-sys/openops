@@ -25,3 +25,4 @@ include = ["openops_core*", "openops_business*", "openops_api*"]
 
 [tool.pytest.ini_options]
 testpaths = ["openops_core/tests", "openops_business/tests", "openops_api/tests"]
+addopts = "--basetemp=.pytest_tmp"

@@ -70,6 +70,7 @@ cd go/openops-cli
 go build -o openops-cli .
 ./openops-cli health --path ../..
 ./openops-cli docgen --path ../.. --out relatorio.html --title "Meu Projeto"
+./openops-cli secscan --path ../..
 ```
 
 **Rust — camada Security (AES-256-GCM)**

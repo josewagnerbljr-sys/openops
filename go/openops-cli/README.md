@@ -25,6 +25,14 @@ O comando `docgen` gera um relatório HTML autocontido (sem CDN, sem dependênci
 
 Arquivos maiores que 300 KB, conteúdo binário e pastas como `.git`, `node_modules`, `target`, `__pycache__` são ignorados automaticamente.
 
+O comando `secscan` varre o mesmo diretório em busca de segredos vazados (chaves de API, tokens, chaves privadas PEM) usando padrões de alta confiança — a mesma ferramenta usada pela validação automática de PRs (veja [SECURITY.md](../../SECURITY.md)):
+
+```bash
+./openops-cli secscan --path /caminho/do/projeto
+```
+
+Se uma linha contiver um valor que *parece* segredo mas não é (ex.: uma chave de exemplo em documentação ou em teste), adicione `secscan:ignore` em um comentário na mesma linha para excluí-la da varredura, deliberadamente e de forma visível no código.
+
 ## Rodar os testes
 
 ```bash

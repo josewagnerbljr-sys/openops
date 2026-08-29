@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  python:
+    name: Python — openops_core
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar dependências
+        run: pip install -e ".[dev]"
+      - name: Rodar testes
+        run: python -m pytest -v
+
+  go:
+    name: Go — openops-cli
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: go/openops-cli
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: go vet
+        run: go vet ./...
+      - name: Rodar testes
+        run: go test ./... -v
+      - name: Build
+        run: go build ./...
+
+  rust:
+    name: Rust — openops-security
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust/openops-security
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Rodar testes
+        run: cargo test --verbose
+      - name: Build release
+        run: cargo build --release
+
+  security-scan:
+    name: Security — secscan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Build openops-cli
+        run: go build -o /tmp/openops-cli .
+        working-directory: go/openops-cli
+      - name: Rodar secscan
+        run: /tmp/openops-cli secscan --path . --json-out secscan-result.json
+        continue-on-error: true
+      - name: Salvar número do PR
+        if: github.event_name == 'pull_request'
+        run: echo '${{ github.event.pull_request.number }}' > pr-number.txt
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'pull_request'
+        with:
+          name: pr-summary
+          path: |
+            secscan-result.json
+            pr-number.txt
+          retention-days: 5

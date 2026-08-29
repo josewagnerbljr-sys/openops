@@ -1,0 +1,65 @@
+# Bloqueio de usuário é uma ação manual, nunca automática — veja a
+# justificativa no SECURITY.md. Este workflow só executa quando VOCÊ
+# (o dono do repositório) comenta o comando /block-contributor em um PR
+# ou issue. Qualquer outra pessoa que tente usar o comando é ignorada.
+#
+# PRÉ-REQUISITO (você precisa configurar uma vez):
+# 1. Crie um Personal Access Token clássico em
+#    https://github.com/settings/tokens com o escopo "user:block".
+# 2. Em Settings > Secrets and variables > Actions deste repositório,
+#    crie um secret chamado USER_BLOCK_TOKEN com o valor desse token.
+# Sem isso, o comando roda mas falha ao tentar bloquear de verdade.
+name: Block Contributor (manual)
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  block:
+    runs-on: ubuntu-latest
+    if: >
+      startsWith(github.event.comment.body, '/block-contributor') &&
+      github.event.comment.user.login == github.repository_owner
+    steps:
+      - name: Extrair o usuário-alvo do comando
+        id: parse
+        run: |
+          # Uso esperado: /block-contributor <username>
+          TARGET=$(echo "${{ github.event.comment.body }}" | awk '{print $2}')
+          if [ -z "$TARGET" ]; then
+            echo "erro: use '/block-contributor <username>'"
+            exit 1
+          fi
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+
+      - name: Bloquear o usuário (requer USER_BLOCK_TOKEN configurado)
+        env:
+          GH_TOKEN: ${{ secrets.USER_BLOCK_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "USER_BLOCK_TOKEN não configurado — veja as instruções no topo deste arquivo."
+            exit 1
+          fi
+          gh api -X PUT "user/blocks/${{ steps.parse.outputs.target }}"
+
+      - name: Confirmar no comentário original
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment "${{ github.event.issue.number }}" \
+            --repo "${{ github.repository }}" \
+            --body "🚫 Usuário \`${{ steps.parse.outputs.target }}\` bloqueado por solicitação do mantenedor."
+
+      - name: Fechar o PR/issue relacionado
+        if: success() && github.event.issue.pull_request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr close "${{ github.event.issue.number }}" --repo "${{ github.repository }}" || true

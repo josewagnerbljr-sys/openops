@@ -1,0 +1,138 @@
+# Este workflow é o "lado confiável" da validação de PR.
+#
+# Ele NUNCA faz checkout de código vindo de um fork, e só roda depois que
+# o workflow "CI" (que sim processa código do fork, mas sem privilégios
+# nem secrets — veja ci.yml) já terminou. Essa separação em dois
+# workflows é o padrão recomendado pelo próprio GitHub para evitar o
+# problema de "pwn request" que vimos no repositório da DIO: aqui, temos
+# permissão de escrita (comentar, rotular, fechar PR), mas nunca
+# executamos uma linha sequer do código enviado pelo contribuidor.
+name: PR Comment & Security Gate
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  actions: read
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.event == 'pull_request'
+    steps:
+      - name: Baixar o resultado do secscan (artefato do workflow CI)
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-summary
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Ler número do PR e resultado do scan
+        id: read
+        run: |
+          if [ -f pr-number.txt ]; then
+            echo "pr_number=$(cat pr-number.txt)" >> "$GITHUB_OUTPUT"
+          else
+            echo "pr_number=" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ -f secscan-result.json ]; then
+            CRITICAL=$(jq -r '.critical_count' secscan-result.json)
+            WARNING=$(jq -r '.warning_count' secscan-result.json)
+          else
+            CRITICAL=0
+            WARNING=0
+          fi
+          echo "critical=$CRITICAL" >> "$GITHUB_OUTPUT"
+          echo "warning=$WARNING" >> "$GITHUB_OUTPUT"
+
+      - name: Buscar conclusão de cada job do CI (python/go/rust)
+        id: jobs
+        if: steps.read.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RESULT=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/jobs" --paginate)
+          for name in python go rust; do
+            CONCLUSION=$(echo "$RESULT" | jq -r --arg n "$name" '.jobs[] | select(.name | ascii_downcase | contains($n)) | .conclusion' | head -1)
+            echo "${name}_conclusion=${CONCLUSION:-desconhecido}" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Rejeitar automaticamente (segredo crítico detectado)
+        if: steps.read.outputs.pr_number != '' && steps.read.outputs.critical > 0
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          FINDINGS=$(jq -r '.findings[] | select(.severity=="CRITICAL") | "- **\(.rule)** em `\(.file):\(.line)`"' secscan-result.json)
+          cat <<EOF > comment.md
+          ## 🚫 PR rejeitado automaticamente — segredo detectado
+
+          Encontramos ${{ steps.read.outputs.critical }} credencial(is) de alta confiança neste PR:
+
+          $FINDINGS
+
+          ### O que fazer
+
+          1. **Revogue/rotacione imediatamente** qualquer chave real que tenha sido exposta — mesmo removida do código, ela pode já ter sido copiada por scanners automáticos públicos.
+          2. Remova o segredo do histórico do commit (não basta um novo commit apagando a linha — use \`git filter-repo\` ou reescreva o branch).
+          3. Use variáveis de ambiente ou um cofre de segredos, nunca hardcode no código — veja o módulo \`python/openops_core/config.py\` como exemplo do padrão esperado neste projeto.
+          4. Abra um novo PR limpo quando estiver pronto.
+
+          Este PR foi fechado automaticamente por segurança. Se isso foi um falso positivo (ex.: uma chave de exemplo/fake em documentação), comente aqui explicando — um mantenedor pode reabrir manualmente.
+          EOF
+
+          gh pr comment "${{ steps.read.outputs.pr_number }}" --repo "${{ github.repository }}" --body-file comment.md
+          gh pr edit "${{ steps.read.outputs.pr_number }}" --repo "${{ github.repository }}" --add-label "security-hold" || true
+          gh pr close "${{ steps.read.outputs.pr_number }}" --repo "${{ github.repository }}"
+
+      - name: Comentar resumo normal (sem segredo crítico)
+        if: steps.read.outputs.pr_number != '' && steps.read.outputs.critical == 0
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          status_icon() {
+            case "$1" in
+              success) echo "✅" ;;
+              failure) echo "❌" ;;
+              *) echo "⏳" ;;
+            esac
+          }
+
+          PY_ICON=$(status_icon "${{ steps.jobs.outputs.python_conclusion }}")
+          GO_ICON=$(status_icon "${{ steps.jobs.outputs.go_conclusion }}")
+          RUST_ICON=$(status_icon "${{ steps.jobs.outputs.rust_conclusion }}")
+
+          cat <<EOF > comment.md
+          ## Resultado da validação automática
+
+          | Camada | Resultado |
+          |---|---|
+          | 🐍 Python | $PY_ICON ${{ steps.jobs.outputs.python_conclusion }} |
+          | 🐹 Go | $GO_ICON ${{ steps.jobs.outputs.go_conclusion }} |
+          | 🦀 Rust | $RUST_ICON ${{ steps.jobs.outputs.rust_conclusion }} |
+          | 🔒 Security scan | ${{ steps.read.outputs.warning }} aviso(s) não-críticos |
+
+          EOF
+
+          if [ "${{ steps.jobs.outputs.python_conclusion }}" = "failure" ] || \
+             [ "${{ steps.jobs.outputs.go_conclusion }}" = "failure" ] || \
+             [ "${{ steps.jobs.outputs.rust_conclusion }}" = "failure" ]; then
+            cat <<'EOF2' >> comment.md
+          ### Como corrigir
+
+          Rode os testes localmente antes de reenviar — veja o comando certo para a camada que falhou em [CONTRIBUTING.md](../CONTRIBUTING.md#como-rodar-tudo-localmente). Depois de corrigir, um novo `git push` no mesmo branch atualiza este PR automaticamente.
+          EOF2
+            gh pr comment "${{ steps.read.outputs.pr_number }}" --repo "${{ github.repository }}" --body-file comment.md
+          else
+            cat <<'EOF3' >> comment.md
+          Tudo passou 🎉 Um mantenedor vai revisar o conteúdo do PR em breve.
+          EOF3
+            gh pr comment "${{ steps.read.outputs.pr_number }}" --repo "${{ github.repository }}" --body-file comment.md
+            gh pr edit "${{ steps.read.outputs.pr_number }}" --repo "${{ github.repository }}" --add-label "checks-passed" || true
+          fi

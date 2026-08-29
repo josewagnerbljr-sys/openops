@@ -4,6 +4,7 @@
 
 - ✅ **Fase 0 — Fundação**: repositório, licença (Apache 2.0), documentação de arquitetura, CI, política de segurança, código de conduta.
 - ✅ **Fase 1 — Core técnico (fatia inicial)**: config, logging estruturado e event bus funcionando em Python (`openops_core`), com testes automatizados. CLI inicial e Structural Health Engine mínimo funcionando em Go (`openops-cli`). Camada Security inicial funcionando em Rust (`openops-security`), com criptografia autenticada AES-256-GCM testada.
+- ✅ **Bônus (fora do cronograma original)**: comando `docgen` no `openops-cli` — gerador de relatório HTML com detecção automática de linguagem e realce de sintaxe, útil como ferramenta standalone para qualquer projeto, não só o OpenOps.
 - ⬜ Restante da Fase 1 em diante: ver cronograma completo abaixo.
 
 ## Cronograma mestre

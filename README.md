@@ -36,6 +36,16 @@ Este é um monorepo intencionalmente poliglota — cada camada usa a linguagem m
 
 Detalhes completos em [ARCHITECTURE.md](ARCHITECTURE.md).
 
+## Bônus: gerador de documentação com realce de sintaxe
+
+O `openops-cli` também inclui o comando `docgen`: aponte para qualquer diretório de código (não precisa ser o próprio OpenOps) e ele gera um relatório HTML autocontido — sem CDN, sem internet — com detecção automática de linguagem (Python, Go, Rust, JavaScript/TypeScript, JSON) e realce de sintaxe real, útil para demonstrações, portfólio e documentação rápida.
+
+```bash
+openops-cli docgen --path ./meu-projeto --out relatorio.html --title "Meu Projeto"
+```
+
+Veja um exemplo gerado a partir do próprio código do CLI em [`docs/examples/demo-report.html`](docs/examples/demo-report.html).
+
 ## Status do projeto
 
 🚧 **Fase 0/1 do roadmap** — fundação pronta, núcleo funcional inicial nas três linguagens, com testes automatizados passando em CI. Veja o [ROADMAP.md](ROADMAP.md) completo para as próximas 14 fases.
@@ -59,6 +69,7 @@ python -m pytest -v
 cd go/openops-cli
 go build -o openops-cli .
 ./openops-cli health --path ../..
+./openops-cli docgen --path ../.. --out relatorio.html --title "Meu Projeto"
 ```
 
 **Rust — camada Security (AES-256-GCM)**

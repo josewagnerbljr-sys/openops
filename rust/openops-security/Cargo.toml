@@ -1,0 +1,15 @@
+[package]
+name = "openops-security"
+version = "0.1.0"
+edition = "2021"
+description = "Camada Security do OpenOps: criptografia autenticada (AES-256-GCM) e gestão de nonce"
+license = "Apache-2.0"
+
+[lib]
+name = "openops_security"
+path = "src/lib.rs"
+
+[dependencies]
+aes-gcm = "0.10"
+rand = "0.8"
+thiserror = "1.0"

@@ -30,7 +30,7 @@ Este é um monorepo intencionalmente poliglota — cada camada usa a linguagem m
 
 | Linguagem | Onde | Por quê |
 |---|---|---|
-| 🐍 **Python** | `python/openops_core` | Business OS, API, OpenSOP e plugins — produtividade e ecossistema |
+| 🐍 **Python** | `python/openops_core`, `python/openops_business`, `python/openops_api` | Core, Business OS, API e plugins — produtividade e ecossistema |
 | 🐹 **Go** | `go/openops-cli` | CLI e Structural Health Engine — binário único, sem dependências, instalação reproduzível |
 | 🦀 **Rust** | `rust/openops-security` | Camada Security — segurança de memória garantida em compilação, ideal para criptografia |
 
@@ -48,7 +48,7 @@ Veja um exemplo gerado a partir do próprio código do CLI em [`docs/examples/de
 
 ## Status do projeto
 
-🚧 **Fase 0/1 do roadmap** — fundação pronta, núcleo funcional inicial nas três linguagens, com testes automatizados passando em CI. Veja o [ROADMAP.md](ROADMAP.md) completo para as próximas 14 fases.
+🚧 **Fase 2 do roadmap** — Fundação e Core técnico completos; primeiro módulo de negócio (Produtos) funcionando de ponta a ponta, com API REST real. 75 testes Python + 6 Go + 6 Rust, todos passando em CI. Veja o [ROADMAP.md](ROADMAP.md) completo para as próximas fases.
 
 ## Quick start
 
@@ -57,11 +57,15 @@ git clone https://github.com/josewagnerbljr-sys/openops.git
 cd openops
 ```
 
-**Python — core (config, logging, events)**
+**Python — core (config, logging, events, errors, registry, db) + Business OS + API**
 ```bash
 cd python
 pip install -e ".[dev]"
 python -m pytest -v
+
+# Subir a API REST de verdade
+python -m uvicorn openops_api.main:app --reload
+# depois acesse http://127.0.0.1:8000/docs para a documentação interativa
 ```
 
 **Go — CLI e Structural Health Engine**
@@ -83,11 +87,13 @@ cargo test
 
 ```
 openops/
-├── python/openops_core/     # Business OS, API, plugins
-├── go/openops-cli/          # CLI, Structural Health Engine
+├── python/openops_core/     # Core: config, logging, events, errors, registry, db
+├── python/openops_business/ # Módulos de negócio (Produtos, e os que vierem depois)
+├── python/openops_api/      # API REST (FastAPI)
+├── go/openops-cli/          # CLI, Structural Health Engine, docgen, secscan
 ├── rust/openops-security/   # Criptografia autenticada (AEAD)
 ├── docs/
-├── .github/workflows/ci.yml
+├── .github/workflows/       # CI + validação automática de PR
 ├── ARCHITECTURE.md
 ├── ROADMAP.md
 ├── CONTRIBUTING.md

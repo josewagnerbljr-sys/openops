@@ -2,10 +2,11 @@
 
 ## Status atual
 
-- ✅ **Fase 1 — Core técnico**: config, logging estruturado, event bus, hierarquia de erros, registry de módulos e camada de banco base (SQLite + migrations versionadas) — todos em Python (`openops_core`), com 45 testes automatizados. CLI (`health`, `docgen`, `secscan`) funcionando em Go. Camada Security em Rust (AES-256-GCM), testada.
+- ✅ **Fase 1 — Core técnico**: config, logging estruturado, event bus, hierarquia de erros, registry de módulos e camada de banco base (SQLite + migrations versionadas) — todos em Python (`openops_core`). CLI (`health`, `docgen`, `secscan`) funcionando em Go. Camada Security em Rust (AES-256-GCM), testada.
+- ✅ **Fase 2 — Business OS (primeira fatia)**: módulo de **Produtos** completo — modelo de domínio validado, repositório com persistência SQLite, serviço de negócio registrado no registry, e API REST real em FastAPI (`openops_api`) com CRUD completo, testada de ponta a ponta (incluindo requisições HTTP reais). 75 testes Python no total.
 - ✅ **Bônus (fora do cronograma original)**: comando `docgen` no `openops-cli` — gerador de relatório HTML com detecção automática de linguagem e realce de sintaxe, útil como ferramenta standalone para qualquer projeto, não só o OpenOps.
 - ✅ **Bônus**: pipeline de validação automática de PR em duas camadas seguras (`ci.yml` + `pr-comment.yml`), com scanner de segredos (`secscan`) e rejeição automática apenas para credenciais de alta confiança — bloqueio de usuário permanece uma decisão manual do mantenedor (`block-contributor.yml`).
-- ⬜ Fase 2 em diante: ver cronograma completo abaixo.
+- ⬜ Restante da Fase 2 (Inventory, Purchasing, Sales, Finance, Pricing, Analytics) e fases seguintes: ver cronograma completo abaixo.
 
 ## Cronograma mestre
 
@@ -13,7 +14,7 @@
 |---|---|
 | 0 — Fundação | Repositório, licença, manifesto, arquitetura, CODEOWNERS, templates, CI e política de segurança. *(concluído)* |
 | 1 — Core técnico | Configuração, logging, eventos, registry, erros, contratos e banco base. *(concluído)* |
-| 2 — Business | Cadastros, produtos, clientes, fornecedores, estoque, compras e vendas. |
+| 2 — Business | Cadastros, produtos, clientes, fornecedores, estoque, compras e vendas. *(Produtos concluído; Clientes/Fornecedores/Estoque/Compras/Vendas pendentes)* |
 | 3 — Finance/Pricing | Custos, fluxo de caixa, DRE, margem e formação de preço. |
 | 4 — OpenSOP | Procedimentos, versões, checklists, evidências e auditoria. |
 | 5 — Operations | Tasks, workflows, eventos, responsáveis, metas e KPIs. |
@@ -43,7 +44,7 @@
 |---|---|
 | P0 | Criar repositório, licença, manifesto, arquitetura, CI e política de segurança. *(concluído)* |
 | P0 | Definir contratos públicos, banco inicial e estrutura modular. *(banco inicial e registry concluídos; contratos públicos — ex.: OpenAPI — ficam para a Fase 9)* |
-| P1 | Business OS. |
+| P1 | Business OS. *(Produtos concluído — API REST completa e testada)* |
 | P1 | OpenSOP. |
 | P1 | Operations/Workflow. |
 | P1 | Security *(fatia inicial concluída — expandir para camadas 2 e 3)*. |

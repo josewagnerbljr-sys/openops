@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+*.egg
+build/
+dist/
+
+# Go
+go/openops-cli/openops-cli
+*.exe
+*.test
+
+# Rust
+rust/**/target/
+Cargo.lock
+
+# Editores / SO
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Segredos (nunca versionar)
+.env
+*.pem
+*.key
+config.json
+
+# Bancos de dados locais
+*.db
+*.sqlite
+*.sqlite3

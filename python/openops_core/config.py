@@ -16,8 +16,10 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any
 
+from .errors import ConfigurationError
 
-class ConfigError(Exception):
+
+class ConfigError(ConfigurationError):
     """Erro de carregamento ou validação de configuração."""
 
 

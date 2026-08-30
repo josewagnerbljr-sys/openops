@@ -101,12 +101,18 @@ openops/
 └── CODE_OF_CONDUCT.md
 ```
 
+## Releases assinadas
+
+Toda tag `v*` publicada dispara build cross-plataforma (Linux/macOS/Windows, amd64/arm64) e assinatura keyless via [Sigstore/cosign](https://www.sigstore.dev/) — sem chave privada pra gerenciar, com verificação pública no [Rekor](https://rekor.sigstore.dev/). Veja as instruções de verificação nas notas de cada [release](https://github.com/josewagnerbljr-sys/openops/releases).
+
 ## Documentação
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — visão, princípios, camadas e módulos planejados
 - [ROADMAP.md](ROADMAP.md) — cronograma completo das 15 fases e marcos de maturidade
 - [CONTRIBUTING.md](CONTRIBUTING.md) — como contribuir, por nível de experiência
 - [SECURITY.md](SECURITY.md) — como reportar vulnerabilidades
+- [THREAT_MODEL.md](THREAT_MODEL.md) — análise formal de ameaças (STRIDE)
+- [MUTATION_TESTING.md](python/MUTATION_TESTING.md) — resultado real de mutation testing sobre o código
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 
 ## Licença

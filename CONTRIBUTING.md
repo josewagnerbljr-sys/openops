@@ -63,4 +63,10 @@ test: adicionar cobertura para módulo de config
 
 ## Reportando vulnerabilidades
 
-Não abra uma issue pública para falhas de segurança — veja [SECURITY.md](SECURITY.md).
+Não abra uma issue pública para falhas de segurança — veja [SECURITY.md](SECURITY.md) e [THREAT_MODEL.md](THREAT_MODEL.md).
+
+## Processo de release (mantenedores)
+
+1. Atualize `ROADMAP.md` se a release fechar uma fase.
+2. Crie e envie uma tag no formato `v0.1.0` (semver): `git tag v0.1.0 && git push origin v0.1.0`.
+3. O workflow `release.yml` builda para 5 combinações de SO/arquitetura, assina cada binário via Sigstore/cosign (keyless) e publica um GitHub Release automaticamente, com instruções de verificação da assinatura já nas notas.

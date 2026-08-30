@@ -109,4 +109,9 @@ def http_status_for(error: OpenOpsError) -> int:
     for cls in type(error).__mro__:
         if cls in HTTP_STATUS_BY_ERROR:
             return HTTP_STATUS_BY_ERROR[cls]
-    return 500
+    # Inalcançável hoje: toda subclasse de OpenOpsError encontra
+    # OpenOpsError (mapeada para 500) em algum ponto do MRO. Mantido como
+    # defesa contra uma futura mudança na hierarquia que quebre essa
+    # garantia — encontrado via mutation testing (mutmut), não coberto
+    # por design, não por descuido.
+    return 500  # pragma: no cover

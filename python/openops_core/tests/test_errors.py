@@ -24,6 +24,16 @@ def test_base_error_has_code_and_to_dict():
     }
 
 
+def test_str_of_error_contains_the_message():
+    """A mensagem passada ao construtor deve chegar até str(exception) —
+    não só ficar disponível via .message. Isso importa porque logs e
+    tracebacks não capturados usam str(exception), não .message.
+    """
+    error = ValidationError("preço deve ser positivo")
+
+    assert str(error) == "preço deve ser positivo"
+
+
 def test_subclasses_have_distinct_codes():
     codes = {
         ValidationError("x").code,

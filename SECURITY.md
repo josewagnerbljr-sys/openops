@@ -14,6 +14,8 @@ Pedimos que você não divulgue publicamente a vulnerabilidade até que uma corr
 
 Este processo cobre o código deste repositório (`python/`, `go/`, `rust/`). Não cobre serviços de terceiros, infraestrutura de hospedagem de forks individuais, nem qualquer componente proprietário mencionado no [ARCHITECTURE.md](ARCHITECTURE.md) que fique fora deste repositório público.
 
+Para uma análise sistemática de ameaças (metodologia STRIDE) — o que já está mitigado e o que é risco conscientemente aceito, com plano de quando será revisitado — veja [THREAT_MODEL.md](THREAT_MODEL.md).
+
 ## Validação automática de Pull Requests
 
 Todo PR passa por três camadas automáticas antes de revisão humana:

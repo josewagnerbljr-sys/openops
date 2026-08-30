@@ -92,6 +92,8 @@ A camada de segurança (`rust/openops-security`) é um subsistema público, docu
 | 2 — Storage/Secrets | Proteger chaves e segredos | Hierarquia de chaves, rotação, isolamento, permissões mínimas |
 | 3 — Access/Runtime | Controlar execução e acesso | Autenticação, RBAC quando adequado, sessões, rate limiting, auditoria |
 
+Para uma análise sistemática de ameaças (o que já está mitigado, o que é risco conscientemente aceito, e por quê), veja [THREAT_MODEL.md](THREAT_MODEL.md).
+
 ## Integridade e proteção contra adulteração
 
 "Imutável" significa que alterações silenciosas não são aceitas pelo fluxo normal: uma mudança gera nova versão, novo hash e registro correspondente. Isso se aplica a manifests de release, hashes de integridade, migrações versionadas, logs de auditoria protegidos e snapshots antes de operações críticas.

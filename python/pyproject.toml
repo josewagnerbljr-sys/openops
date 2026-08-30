@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "pytest-cov>=4.0", "httpx>=0.27"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "httpx>=0.27", "hypothesis>=6.100", "mutmut>=3.0"]
 
 [build-system]
 requires = ["setuptools>=68.0"]
@@ -26,3 +26,27 @@ include = ["openops_core*", "openops_business*", "openops_api*"]
 [tool.pytest.ini_options]
 testpaths = ["openops_core/tests", "openops_business/tests", "openops_api/tests"]
 addopts = "--basetemp=.pytest_tmp"
+
+[tool.mutmut]
+source_paths = ["openops_core/errors.py", "openops_core/registry.py", "openops_business/products/models.py"]
+also_copy = [
+    "openops_core/__init__.py",
+    "openops_core/config.py",
+    "openops_core/logging.py",
+    "openops_core/events.py",
+    "openops_core/db.py",
+    "openops_core/tests/",
+    "openops_business/__init__.py",
+    "openops_business/products/__init__.py",
+    "openops_business/products/repository.py",
+    "openops_business/products/service.py",
+    "openops_business/products/router.py",
+    "openops_business/tests/",
+]
+pytest_add_cli_args_test_selection = [
+    "openops_core/tests/test_errors.py",
+    "openops_core/tests/test_registry.py",
+    "openops_core/tests/test_properties.py",
+    "openops_business/tests/test_products_models.py",
+    "openops_business/tests/test_products_properties.py",
+]

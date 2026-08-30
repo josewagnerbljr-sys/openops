@@ -1,0 +1,144 @@
+# Publica releases do openops-cli assinados criptograficamente via
+# Sigstore/cosign — o mesmo padrão de segurança de cadeia de suprimentos
+# (supply chain security) usado por projetos como Kubernetes e Istio.
+#
+# "Keyless signing": não existe uma chave privada pra gerenciar, vazar ou
+# rotacionar. O cosign usa o token OIDC que o próprio GitHub Actions
+# emite para este workflow como prova de identidade — a assinatura fica
+# criptograficamente ligada a "este workflow, deste repositório, deste
+# commit", e é registrada publicamente no Rekor (o transparency log do
+# projeto Sigstore). Qualquer pessoa pode depois verificar que um
+# binário baixado realmente veio deste pipeline, sem confiar "de boca"
+# em quem publicou.
+#
+# IMPORTANTE (o que este workflow AINDA NÃO tem como eu testar de ponta
+# a ponta neste ambiente): a sintaxe foi validada, mas a execução real
+# só acontece quando uma tag `v*` é enviada de verdade para o GitHub —
+# teste com uma tag antes de considerar isso "comprovado em produção",
+# do mesmo jeito que fizemos com o pr-comment.yml.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write   # criar o GitHub Release e subir os artefatos
+  id-token: write    # emitir o token OIDC usado pelo cosign (keyless)
+
+jobs:
+  build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Rodar testes antes de liberar qualquer binário
+        run: go test ./...
+        working-directory: go/openops-cli
+
+      - name: Build do binário
+        id: build
+        working-directory: go/openops-cli
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          EXT=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then EXT=".exe"; fi
+          NAME="openops-cli-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}"
+          go build -ldflags="-s -w -X github.com/josewagnerbljr-sys/openops/go/openops-cli/cmd.Version=${GITHUB_REF_NAME}" -o "$NAME" .
+          echo "artifact=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Gerar checksum SHA-256
+        working-directory: go/openops-cli
+        run: sha256sum "${{ steps.build.outputs.artifact }}" > "${{ steps.build.outputs.artifact }}.sha256"
+
+      - name: Instalar cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Assinar o binário (keyless, via OIDC do GitHub)
+        working-directory: go/openops-cli
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign sign-blob \
+            --yes \
+            --output-signature "${{ steps.build.outputs.artifact }}.sig" \
+            --output-certificate "${{ steps.build.outputs.artifact }}.pem" \
+            "${{ steps.build.outputs.artifact }}"
+
+      - name: Enviar artefatos (binário + checksum + assinatura + certificado)
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            go/openops-cli/${{ steps.build.outputs.artifact }}
+            go/openops-cli/${{ steps.build.outputs.artifact }}.sha256
+            go/openops-cli/${{ steps.build.outputs.artifact }}.sig
+            go/openops-cli/${{ steps.build.outputs.artifact }}.pem
+          retention-days: 90
+
+  publish:
+    name: Publicar GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar todos os artefatos de build
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: release-*
+          merge-multiple: true
+
+      - name: Listar o que será publicado
+        run: ls -la dist/
+
+      - name: Criar o Release e anexar os artefatos
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          body: |
+            ## Verificando a assinatura deste release
+
+            Cada binário vem com um arquivo `.sig` (assinatura) e `.pem`
+            (certificado), gerados via assinatura keyless do Sigstore/cosign.
+            Para verificar que um binário realmente veio deste pipeline,
+            sem ter sido adulterado:
+
+            ```bash
+            cosign verify-blob \
+              --signature openops-cli-linux-amd64.sig \
+              --certificate openops-cli-linux-amd64.pem \
+              --certificate-identity-regexp "https://github.com/josewagnerbljr-sys/openops/.github/workflows/release.yml@.*" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              openops-cli-linux-amd64
+            ```
+
+            Cada binário também tem um `.sha256` para conferência simples de integridade:
+
+            ```bash
+            sha256sum -c openops-cli-linux-amd64.sha256
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

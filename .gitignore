@@ -38,3 +38,7 @@ config.json
 *.db
 *.sqlite
 *.sqlite3
+
+# Mutation testing (mutmut)
+mutants/
+.mutmut-cache

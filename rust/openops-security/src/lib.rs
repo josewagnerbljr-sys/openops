@@ -151,3 +151,83 @@ mod tests {
         assert_eq!(result, Err(SecurityError::CiphertextTooShort));
     }
 }
+
+/// Testes baseados em propriedades (property-based testing): em vez de
+/// exemplos fixos, geramos centenas de entradas aleatórias (chaves e
+/// textos claros arbitrários) e verificamos que invariantes do sistema
+/// se mantêm para TODAS elas — não só para os casos que pensamos em
+/// escrever manualmente. `proptest` também guarda automaticamente, em
+/// `proptest-regressions/`, qualquer caso que já tenha falhado, para
+/// nunca mais regredir silenciosamente.
+#[cfg(test)]
+mod property_tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        /// Para QUALQUER texto claro e QUALQUER chave válida, cifrar e
+        /// depois decifrar sempre recupera o texto original exato —
+        /// byte a byte, para qualquer tamanho de entrada (incluindo
+        /// vazio e mensagens grandes).
+        #[test]
+        fn roundtrip_holds_for_arbitrary_input(
+            key in prop::array::uniform32(any::<u8>()),
+            plaintext in prop::collection::vec(any::<u8>(), 0..2048),
+        ) {
+            let sealed = encrypt(&plaintext, &key).expect("encrypt não deveria falhar com chave válida");
+            let recovered = decrypt(&sealed, &key).expect("decrypt deveria recuperar o texto original");
+
+            prop_assert_eq!(recovered, plaintext);
+        }
+
+        /// Para QUALQUER texto claro, cifrar duas vezes com a mesma
+        /// chave nunca produz o mesmo nonce (os primeiros 12 bytes do
+        /// resultado) — a invariante de segurança mais importante do
+        /// GCM (reuso de nonce quebra a confidencialidade).
+        #[test]
+        fn nonce_is_never_reused_across_encryptions(
+            key in prop::array::uniform32(any::<u8>()),
+            plaintext in prop::collection::vec(any::<u8>(), 0..512),
+        ) {
+            let sealed_a = encrypt(&plaintext, &key).unwrap();
+            let sealed_b = encrypt(&plaintext, &key).unwrap();
+
+            prop_assert_ne!(&sealed_a[..NONCE_LEN], &sealed_b[..NONCE_LEN]);
+        }
+
+        /// Para QUALQUER texto claro e QUALQUER posição corrompida no
+        /// resultado cifrado, a decriptografia sempre falha de forma
+        /// explícita — nunca retorna dado parcial ou incorreto
+        /// silenciosamente.
+        #[test]
+        fn corrupting_any_single_byte_breaks_decryption(
+            key in prop::array::uniform32(any::<u8>()),
+            plaintext in prop::collection::vec(any::<u8>(), 1..512),
+            corrupt_seed in any::<u8>(),
+        ) {
+            let mut sealed = encrypt(&plaintext, &key).unwrap();
+            let corrupt_index = (corrupt_seed as usize) % sealed.len();
+            sealed[corrupt_index] ^= 0xFF;
+
+            let result = decrypt(&sealed, &key);
+
+            prop_assert_eq!(result, Err(SecurityError::DecryptionFailed));
+        }
+
+        /// Para QUALQUER par de chaves distintas, o texto cifrado com
+        /// uma nunca é decifrável com a outra.
+        #[test]
+        fn decrypting_with_wrong_key_always_fails(
+            key_a in prop::array::uniform32(any::<u8>()),
+            key_b in prop::array::uniform32(any::<u8>()),
+            plaintext in prop::collection::vec(any::<u8>(), 0..512),
+        ) {
+            prop_assume!(key_a != key_b);
+
+            let sealed = encrypt(&plaintext, &key_a).unwrap();
+            let result = decrypt(&sealed, &key_b);
+
+            prop_assert_eq!(result, Err(SecurityError::DecryptionFailed));
+        }
+    }
+}

@@ -48,7 +48,7 @@ Veja um exemplo gerado a partir do próprio código do CLI em [`docs/examples/de
 
 ## Status do projeto
 
-🚧 **Fase 2 do roadmap** — Fundação e Core técnico completos; primeiro módulo de negócio (Produtos) funcionando de ponta a ponta, com API REST real. 75 testes Python + 6 Go + 6 Rust, todos passando em CI. Veja o [ROADMAP.md](ROADMAP.md) completo para as próximas fases.
+🚧 **Fase 2 do roadmap** — Fundação e Core técnico completos; dois módulos de negócio (Produtos, Clientes) funcionando de ponta a ponta, com API REST real. 119 testes Python + 10 Rust + Go, todos passando em CI. Veja o [ROADMAP.md](ROADMAP.md) completo para as próximas fases.
 
 ## Quick start
 

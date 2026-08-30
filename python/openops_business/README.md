@@ -7,7 +7,7 @@ Módulos de negócio do OpenOps — a implementação concreta da camada "Busine
 | Módulo | Status | O que cobre |
 |---|---|---|
 | `products/` | ✅ Completo | Cadastro de produtos: nome, preço, estoque, categoria — CRUD completo |
-| `customers/` | ⬜ Planejado | Clientes |
+| `customers/` | ✅ Completo | Cadastro de clientes: nome, e-mail (único, validado), telefone, documento — CRUD completo com busca por nome |
 | `suppliers/` | ⬜ Planejado | Fornecedores |
 | `inventory/` | ⬜ Planejado | Entradas, saídas, lotes, perdas |
 | `sales/` | ⬜ Planejado | Pedidos de venda |

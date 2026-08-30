@@ -22,6 +22,7 @@ PRODUCTS_MIGRATIONS = [
     Migration(
         version=1,
         name="create_products_table",
+        namespace="products",
         sql="""
         CREATE TABLE products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -28,27 +28,39 @@ class Migration:
     """Uma migration versionada.
 
     Attributes:
-        version: inteiro positivo, único, aplicado em ordem crescente.
+        version: inteiro positivo, único **dentro do seu namespace**,
+            aplicado em ordem crescente.
         name: identificador legível (ex.: "create_products_table").
         sql: um ou mais statements SQL (``executescript``-compatível).
+        namespace: identifica a qual módulo a migration pertence (ex.:
+            "products", "customers"). Módulos diferentes numeram suas
+            migrations independentemente a partir de 1 — sem isso, dois
+            módulos aplicando "version=1" colidiriam no mesmo banco
+            compartilhado (bug real, encontrado ao integrar o segundo
+            módulo de negócio; corrigido aqui).
     """
 
     version: int
     name: str
     sql: str
+    namespace: str = "core"
 
     def __post_init__(self) -> None:
         if self.version <= 0:
             raise ValidationError("version da migration deve ser um inteiro positivo")
         if not self.name.strip():
             raise ValidationError("name da migration não pode ser vazio")
+        if not self.namespace.strip():
+            raise ValidationError("namespace da migration não pode ser vazio")
 
 
 _MIGRATIONS_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS _migrations (
-    version INTEGER PRIMARY KEY,
+    namespace TEXT NOT NULL,
+    version INTEGER NOT NULL,
     name TEXT NOT NULL,
-    applied_at TEXT NOT NULL
+    applied_at TEXT NOT NULL,
+    PRIMARY KEY (namespace, version)
 )
 """
 
@@ -89,44 +101,63 @@ class Database:
     def __exit__(self, *exc_info: object) -> None:
         self.close()
 
-    def applied_versions(self) -> set[int]:
+    def applied_versions(self, *, namespace: str = "core") -> set[int]:
         conn = self.connect()
-        rows = conn.execute("SELECT version FROM _migrations").fetchall()
+        rows = conn.execute(
+            "SELECT version FROM _migrations WHERE namespace = ?", (namespace,)
+        ).fetchall()
         return {row[0] for row in rows}
 
     def migrate(self, migrations: list[Migration]) -> list[int]:
-        """Aplica, em ordem de versão, as migrations ainda não aplicadas.
+        """Aplica, em ordem de versão e agrupadas por namespace, as
+        migrations ainda não aplicadas.
 
         Cada migration roda em sua própria transação: uma falha não
         deixa o banco num estado parcialmente migrado silenciosamente —
         levanta :class:`MaintenanceError` com a versão e o motivo exatos.
+        Migrations de namespaces diferentes nunca colidem entre si,
+        mesmo reaproveitando o mesmo número de versão.
         """
 
-        versions = [m.version for m in migrations]
-        if len(versions) != len(set(versions)):
-            raise MaintenanceError("existem migrations com o mesmo número de version")
+        by_namespace: dict[str, list[Migration]] = {}
+        for m in migrations:
+            by_namespace.setdefault(m.namespace, []).append(m)
+
+        for namespace, group in by_namespace.items():
+            versions = [m.version for m in group]
+            if len(versions) != len(set(versions)):
+                raise MaintenanceError(
+                    f"existem migrations com o mesmo número de version no namespace '{namespace}'"
+                )
 
         conn = self.connect()
-        already_applied = self.applied_versions()
         newly_applied: list[int] = []
 
-        for migration in sorted(migrations, key=lambda m: m.version):
-            if migration.version in already_applied:
-                continue
-            try:
-                conn.executescript(migration.sql)
-                conn.execute(
-                    "INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?)",
-                    (migration.version, migration.name, datetime.now(timezone.utc).isoformat()),
-                )
-                conn.commit()
-                newly_applied.append(migration.version)
-            except sqlite3.Error as exc:
-                conn.rollback()
-                raise MaintenanceError(
-                    f"falha ao aplicar migration {migration.version} ('{migration.name}'): {exc}",
-                    details={"version": migration.version, "name": migration.name},
-                ) from exc
+        for namespace, group in by_namespace.items():
+            already_applied = self.applied_versions(namespace=namespace)
+
+            for migration in sorted(group, key=lambda m: m.version):
+                if migration.version in already_applied:
+                    continue
+                try:
+                    conn.executescript(migration.sql)
+                    conn.execute(
+                        "INSERT INTO _migrations (namespace, version, name, applied_at) VALUES (?, ?, ?, ?)",
+                        (
+                            migration.namespace,
+                            migration.version,
+                            migration.name,
+                            datetime.now(timezone.utc).isoformat(),
+                        ),
+                    )
+                    conn.commit()
+                    newly_applied.append(migration.version)
+                except sqlite3.Error as exc:
+                    conn.rollback()
+                    raise MaintenanceError(
+                        f"falha ao aplicar migration {namespace}:{migration.version} ('{migration.name}'): {exc}",
+                        details={"namespace": namespace, "version": migration.version, "name": migration.name},
+                    ) from exc
 
         return newly_applied
 

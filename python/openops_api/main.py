@@ -28,6 +28,10 @@ from openops_business.customers import CustomerService
 from openops_business.customers import router as customers_router
 from openops_business.customers.service import register as register_customers
 
+from openops_business.inventory import InventoryService
+from openops_business.inventory import router as inventory_router
+from openops_business.inventory.service import register as register_inventory
+
 
 def create_app(*, db_path: str = ":memory:", registry: ModuleRegistry | None = None) -> FastAPI:
     """Monta uma instância da API OpenOps.
@@ -56,9 +60,14 @@ def create_app(*, db_path: str = ":memory:", registry: ModuleRegistry | None = N
     if "customers" not in target_registry:
         register_customers(target_registry)
 
+    inventory_service = InventoryService(db, product_service)
+    if "inventory" not in target_registry:
+        register_inventory(target_registry)
+
     app.state.db = db
     app.state.product_service = product_service
     app.state.customer_service = customer_service
+    app.state.inventory_service = inventory_service
     app.state.registry = target_registry
 
     @app.exception_handler(OpenOpsError)
@@ -74,6 +83,7 @@ def create_app(*, db_path: str = ":memory:", registry: ModuleRegistry | None = N
 
     app.include_router(products_router)
     app.include_router(customers_router)
+    app.include_router(inventory_router)
 
     return app
 

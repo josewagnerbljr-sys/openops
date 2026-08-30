@@ -3,7 +3,7 @@
 ## Status atual
 
 - ✅ **Fase 1 — Core técnico**: config, logging estruturado, event bus, hierarquia de erros, registry de módulos e camada de banco base (SQLite + migrations versionadas) — todos em Python (`openops_core`). CLI (`health`, `docgen`, `secscan`) funcionando em Go. Camada Security em Rust (AES-256-GCM), testada.
-- ✅ **Fase 2 — Business OS (dois módulos)**: **Produtos** e **Clientes**, ambos com modelo de domínio validado, repositório SQLite, serviço registrado no registry, e API REST completa em FastAPI (`openops_api`), testados de ponta a ponta. 119 testes Python no total, incluindo testes de propriedade para o validador de e-mail.
+- ✅ **Fase 2 — Business OS (três módulos)**: **Produtos**, **Clientes** e **Estoque**, com API REST completa. O módulo de Estoque é o primeiro a integrar dois módulos de negócio entre si (atualiza o estoque do Produto) e a usar o `EventBus` do core de verdade — publica `stock.changed` e `stock.low`. 149 testes Python no total.
 - ✅ **Correção de arquitetura real**: migrations agora são namespaced por módulo (`Migration.namespace`) — sem isso, dois módulos usando "version=1" colidiam silenciosamente na tabela `_migrations` compartilhada, e o segundo módulo nunca criava sua tabela. Bug encontrado e corrigido ao integrar o módulo de Clientes.
 - ✅ **Bônus (fora do cronograma original)**: comando `docgen` no `openops-cli` — gerador de relatório HTML com detecção automática de linguagem e realce de sintaxe, útil como ferramenta standalone para qualquer projeto, não só o OpenOps.
 - ✅ **Bônus**: pipeline de validação automática de PR em duas camadas seguras (`ci.yml` + `pr-comment.yml`), com scanner de segredos (`secscan`) e rejeição automática apenas para credenciais de alta confiança — bloqueio de usuário permanece uma decisão manual do mantenedor (`block-contributor.yml`).
@@ -15,7 +15,7 @@
 |---|---|
 | 0 — Fundação | Repositório, licença, manifesto, arquitetura, CODEOWNERS, templates, CI e política de segurança. *(concluído)* |
 | 1 — Core técnico | Configuração, logging, eventos, registry, erros, contratos e banco base. *(concluído)* |
-| 2 — Business | Cadastros, produtos, clientes, fornecedores, estoque, compras e vendas. *(Produtos e Clientes concluídos; Fornecedores/Estoque/Compras/Vendas pendentes)* |
+| 2 — Business | Cadastros, produtos, clientes, fornecedores, estoque, compras e vendas. *(Produtos, Clientes e Estoque concluídos; Fornecedores/Compras/Vendas pendentes)* |
 | 3 — Finance/Pricing | Custos, fluxo de caixa, DRE, margem e formação de preço. |
 | 4 — OpenSOP | Procedimentos, versões, checklists, evidências e auditoria. |
 | 5 — Operations | Tasks, workflows, eventos, responsáveis, metas e KPIs. |

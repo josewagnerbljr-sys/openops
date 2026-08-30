@@ -8,8 +8,8 @@ Módulos de negócio do OpenOps — a implementação concreta da camada "Busine
 |---|---|---|
 | `products/` | ✅ Completo | Cadastro de produtos: nome, preço, estoque, categoria — CRUD completo |
 | `customers/` | ✅ Completo | Cadastro de clientes: nome, e-mail (único, validado), telefone, documento — CRUD completo com busca por nome |
+| `inventory/` | ✅ Completo | Movimentação de estoque (entrada/saída/ajuste), integrado ao módulo de Produtos, publica eventos `stock.changed`/`stock.low` via EventBus |
 | `suppliers/` | ⬜ Planejado | Fornecedores |
-| `inventory/` | ⬜ Planejado | Entradas, saídas, lotes, perdas |
 | `sales/` | ⬜ Planejado | Pedidos de venda |
 
 ## Rodar os testes

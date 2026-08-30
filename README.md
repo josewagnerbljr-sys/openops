@@ -119,6 +119,28 @@ Toda tag `v*` publicada dispara build cross-plataforma (Linux/macOS/Windows, amd
 
 [Apache License 2.0](LICENSE) — © 2026 José Wagner Blanco Júnior.
 
-## Contato
+## Fale comigo
 
-📧 [consultoriablanco8@gmail.com](mailto:consultoriablanco8@gmail.com) · 💼 [LinkedIn](https://www.linkedin.com/in/blancoconsultoria) · 🌐 [chefblanco.com.br](https://chefblanco.com.br/)
+<div align="center">
+
+### 💬 Tem um problema de sistema, integração ou automação pra resolver?
+
+[![WhatsApp — Catálogo](https://img.shields.io/badge/WhatsApp-Cat%C3%A1logo%20%26%20Suporte-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)](https://wa.me/c/554491585033)
+
+Catálogo com softwares em promoção, auxílio na resolução de problemas, automações e muito mais — direto pelo WhatsApp.
+
+[![WhatsApp — Canal](https://img.shields.io/badge/WhatsApp-Canal%20de%20Novidades-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)](https://whatsapp.com/channel/0029VbCg8mMHQbS8zrKhyE0W)
+
+Novidades tecnológicas, sistemas de integração e programação — sem precisar de contato direto.
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Artigos%20%26%20Bastidores-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/blancoconsultoria)
+
+Me conheça um pouco melhor e acompanhe artigos e publicações com um olhar diferente sobre problemas reais de engenharia.
+
+[![Instagram](https://img.shields.io/badge/Instagram-chef__j.blanco-E4405F?style=for-the-badge&logo=instagram&logoColor=white)](https://www.instagram.com/chef_j.blanco/)
+
+Pra gente se aproximar de verdade — e construir um legado junto.
+
+📧 [consultoriablanco8@gmail.com](mailto:consultoriablanco8@gmail.com) &nbsp;·&nbsp; 🌐 [chefblanco.com.br](https://chefblanco.com.br/)
+
+</div>

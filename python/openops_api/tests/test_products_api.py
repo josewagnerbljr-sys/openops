@@ -1,17 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from openops_core.registry import ModuleRegistry
-from openops_api.main import create_app
-
-
-@pytest.fixture
-def client() -> TestClient:
-    # cada teste recebe app + banco + registry isolados — nenhum estado
-    # vaza de um teste para o outro
-    app = create_app(db_path=":memory:", registry=ModuleRegistry())
-    return TestClient(app)
-
 
 def test_root_lists_registered_modules(client):
     response = client.get("/")

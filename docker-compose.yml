@@ -1,0 +1,43 @@
+# Sobe a API do OpenOps com um comando:
+#   OPENOPS_JWT_SECRET=$(openssl rand -hex 32) docker compose up --build
+#
+# Depois: http://localhost:8000/docs
+#
+# O CLI (openops-cli) não é um serviço de longa duração — é invocado
+# sob demanda:
+#   docker compose run --rm cli health --path /workspace
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: python/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      # OBRIGATÓRIO em qualquer uso real — sem isso, uma chave aleatória
+      # é gerada a cada reinício do container e todo token emitido
+      # antes vira inválido. Gere uma com: openssl rand -hex 32
+      - OPENOPS_JWT_SECRET=${OPENOPS_JWT_SECRET:?defina OPENOPS_JWT_SECRET antes de subir (ex.: openssl rand -hex 32)}
+      - OPENOPS_TRACING_CONSOLE=${OPENOPS_TRACING_CONSOLE:-0}
+      - OPENOPS_DB_PATH=/app/data/openops.db
+    volumes:
+      - openops-data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/', timeout=2)"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  cli:
+    build:
+      context: .
+      dockerfile: go/openops-cli/Dockerfile
+    volumes:
+      - .:/workspace:ro
+    profiles: ["tools"]  # não sobe com `docker compose up`; só via `run`
+
+volumes:
+  openops-data:

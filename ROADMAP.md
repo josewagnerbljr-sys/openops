@@ -7,7 +7,8 @@
 - ✅ **Correção de arquitetura real**: migrations agora são namespaced por módulo (`Migration.namespace`) — sem isso, dois módulos usando "version=1" colidiam silenciosamente na tabela `_migrations` compartilhada, e o segundo módulo nunca criava sua tabela. Bug encontrado e corrigido ao integrar o módulo de Clientes.
 - ✅ **Bônus (fora do cronograma original)**: comando `docgen` no `openops-cli` — gerador de relatório HTML com detecção automática de linguagem e realce de sintaxe, útil como ferramenta standalone para qualquer projeto, não só o OpenOps.
 - ✅ **Bônus**: pipeline de validação automática de PR em duas camadas seguras (`ci.yml` + `pr-comment.yml`), com scanner de segredos (`secscan`) e rejeição automática apenas para credenciais de alta confiança — bloqueio de usuário permanece uma decisão manual do mantenedor (`block-contributor.yml`).
-- ⬜ Restante da Fase 2 (Inventory, Purchasing, Sales, Finance, Pricing, Analytics) e fases seguintes: ver cronograma completo abaixo.
+- ✅ **Bônus (nível produção)**: autenticação JWT + RBAC real na API (viewer/operator/admin, senhas com Argon2id), observabilidade completa (OpenTelemetry + métricas Prometheus em `/metrics`), containerização Docker (Dockerfiles multi-stage para API e CLI + `docker-compose.yml`), e geração de SBOM (CycloneDX) para as três linguagens em cada release.
+- ⬜ Restante da Fase 2 (Fornecedores, Compras, Vendas) e fases seguintes: ver cronograma completo abaixo.
 
 ## Cronograma mestre
 
@@ -19,7 +20,7 @@
 | 3 — Finance/Pricing | Custos, fluxo de caixa, DRE, margem e formação de preço. |
 | 4 — OpenSOP | Procedimentos, versões, checklists, evidências e auditoria. |
 | 5 — Operations | Tasks, workflows, eventos, responsáveis, metas e KPIs. |
-| 6 — Security | AES-256 aplicado corretamente, secrets, access control e auditoria. |
+| 6 — Security | AES-256 aplicado corretamente, secrets, access control e auditoria. *(Autenticação JWT + RBAC concluído; gestão de chaves/rotação e rate limiting pendentes)* |
 | 7 — Maintenance | Diagnóstico, integridade, dependências, snapshots e recovery. |
 | 8 — Health | Structural scan, health score, relatórios e histórico. |
 | 9 — API/CLI | Interfaces estáveis e automação. |

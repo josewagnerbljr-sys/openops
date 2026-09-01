@@ -48,7 +48,7 @@ Veja um exemplo gerado a partir do próprio código do CLI em [`docs/examples/de
 
 ## Status do projeto
 
-🚧 **Fase 2 do roadmap** — Fundação e Core técnico completos; três módulos de negócio (Produtos, Clientes, Estoque) funcionando de ponta a ponta e integrados entre si via EventBus, com API REST real. 149 testes Python + 10 Rust + Go, todos passando em CI. Veja o [ROADMAP.md](ROADMAP.md) completo para as próximas fases.
+🚀 **Nível produção** — Fundação, Core técnico e três módulos de Business OS (Produtos, Clientes, Estoque) completos, agora com **autenticação JWT + RBAC real**, **observabilidade** (OpenTelemetry + métricas Prometheus), **containerização Docker** e **SBOM** assinado em cada release. 183 testes Python + 10 Rust + Go, todos passando em CI. Veja o [ROADMAP.md](ROADMAP.md) completo para as próximas fases.
 
 ## Quick start
 
@@ -104,6 +104,19 @@ openops/
 ## Releases assinadas
 
 Toda tag `v*` publicada dispara build cross-plataforma (Linux/macOS/Windows, amd64/arm64) e assinatura keyless via [Sigstore/cosign](https://www.sigstore.dev/) — sem chave privada pra gerenciar, com verificação pública no [Rekor](https://rekor.sigstore.dev/). Veja as instruções de verificação nas notas de cada [release](https://github.com/josewagnerbljr-sys/openops/releases).
+
+## Executando com Docker
+
+```bash
+OPENOPS_JWT_SECRET=$(openssl rand -hex 32) docker compose up --build
+# depois: http://localhost:8000/docs
+```
+
+## Segurança de nível produção
+
+- **Autenticação + RBAC**: toda rota de negócio exige JWT; leitura pede login, escrita pede papel `operator` ou superior. Senhas com Argon2id (recomendação atual da OWASP).
+- **Observabilidade**: cada requisição HTTP gera um trace (OpenTelemetry) e métricas Prometheus reais em `/metrics`.
+- **SBOM assinado**: cada release inclui um inventário formal de dependências (CycloneDX) para as três linguagens.
 
 ## Documentação
 

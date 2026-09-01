@@ -2,17 +2,17 @@
 openops_business.products.router
 =================================
 
-Rotas REST do módulo de Produtos. O serviço (``ProductService``) é
-obtido via ``request.app.state.product_service`` — isso mantém o router
-sem estado global próprio, o que torna trivial rodar múltiplas
-instâncias da API em testes com bancos isolados (ver
-``openops_api/tests``).
+Rotas REST do módulo de Produtos. Leitura exige apenas estar
+autenticado; criação/edição/remoção exigem papel "operator" ou
+superior (ver `openops_api.auth`).
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, status
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, Request, status
+from pydantic import BaseModel
+
+from openops_api.auth import get_current_user, require_role
 
 from .models import Product
 from .service import ProductService
@@ -56,7 +56,12 @@ def _service(request: Request) -> ProductService:
     return request.app.state.product_service
 
 
-@router.post("", response_model=ProductOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=ProductOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_role("operator"))],
+)
 def create_product(payload: ProductCreate, request: Request) -> ProductOut:
     product = _service(request).create_product(
         name=payload.name, price=payload.price, stock=payload.stock, category=payload.category
@@ -64,19 +69,23 @@ def create_product(payload: ProductCreate, request: Request) -> ProductOut:
     return ProductOut.from_domain(product)
 
 
-@router.get("", response_model=list[ProductOut])
+@router.get("", response_model=list[ProductOut], dependencies=[Depends(get_current_user)])
 def list_products(request: Request, category: str | None = None) -> list[ProductOut]:
     products = _service(request).list_products(category=category)
     return [ProductOut.from_domain(p) for p in products]
 
 
-@router.get("/{product_id}", response_model=ProductOut)
+@router.get("/{product_id}", response_model=ProductOut, dependencies=[Depends(get_current_user)])
 def get_product(product_id: int, request: Request) -> ProductOut:
     product = _service(request).get_product(product_id)
     return ProductOut.from_domain(product)
 
 
-@router.put("/{product_id}", response_model=ProductOut)
+@router.put(
+    "/{product_id}",
+    response_model=ProductOut,
+    dependencies=[Depends(require_role("operator"))],
+)
 def update_product(product_id: int, payload: ProductUpdate, request: Request) -> ProductOut:
     product = _service(request).update_product(
         product_id,
@@ -88,6 +97,10 @@ def update_product(product_id: int, payload: ProductUpdate, request: Request) ->
     return ProductOut.from_domain(product)
 
 
-@router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{product_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_role("operator"))],
+)
 def delete_product(product_id: int, request: Request) -> None:
     _service(request).delete_product(product_id)

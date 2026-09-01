@@ -1,15 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from openops_core.registry import ModuleRegistry
-from openops_api.main import create_app
-
-
-@pytest.fixture
-def client() -> TestClient:
-    app = create_app(db_path=":memory:", registry=ModuleRegistry())
-    return TestClient(app)
-
 
 @pytest.fixture
 def product_id(client) -> int:

@@ -79,10 +79,12 @@ A fronteira de confiança mais crítica do sistema hoje é a que separa **códig
 
 | Categoria | Ameaça concreta | Status |
 |---|---|---|
-| **S**poofing / **E**levation of Privilege | Qualquer chamador consegue criar/editar/apagar produtos, sem autenticação | ⚠️ **Risco aceito, não ignorado** — autenticação e RBAC são escopo explícito da Fase 6 (Security) e Fase 9 (API/CLI robustecidas) do roadmap. Hoje, rodar a API exposta publicamente sem um proxy de autenticação na frente **não é recomendado** |
+| **S**poofing / **E**levation of Privilege | Qualquer chamador conseguir criar/editar/apagar produtos, sem autenticação | ✅ Mitigado — autenticação JWT (Argon2id para senha) e RBAC (viewer/operator/admin) obrigatórios em toda rota de negócio; leitura exige login, escrita exige "operator"+ |
 | **T**ampering | Injeção SQL via parâmetros da API | ✅ Mitigado — todo acesso a banco em `openops_core/db.py` usa parâmetros posicionais (`?`) do `sqlite3`, nunca concatenação de string |
 | **I**nformation Disclosure | Stack trace ou detalhe interno vazando em resposta de erro | ✅ Mitigado — todo erro de domínio passa por `OpenOpsError.to_dict()`, que expõe só `error`/`message`/`details` estruturados, nunca traceback; erros não mapeados (bugs reais) ainda cairiam no handler padrão do FastAPI — não coberto por teste ainda |
-| **D**enial of Service | Ausência de rate limiting | ⚠️ Risco aceito — nenhum rate limiting implementado; item da Camada 3 (Access/Runtime) da Fase 6 |
+| **I**nformation Disclosure | Senha de usuário armazenada em texto claro ou hash fraco | ✅ Mitigado — Argon2id (via `argon2-cffi`), recomendado atualmente pela OWASP; nunca comparação em texto claro |
+| **D**enial of Service | Ausência de rate limiting | ⚠️ Risco aceito — nenhum rate limiting implementado ainda |
+| **R**epudiation | Chamadas à API sem rastro de quem fez o quê | ⚠️ Parcialmente mitigado — o token JWT identifica o usuário em cada requisição (logs de acesso já sabem "quem"), mas não há um log de auditoria estruturado por operação ainda (planejado para a Fase 7 — Maintenance) |
 
 ### 4.4 CLI (`go/openops-cli`)
 
@@ -101,11 +103,11 @@ A fronteira de confiança mais crítica do sistema hoje é a que separa **códig
 - Reuso de nonce (testado com property-based testing)
 - Injeção SQL (parâmetros preparados em toda a camada de banco)
 - Vazamento de stack trace em erro de API (erros estruturados)
+- **Autenticação e RBAC na API** (JWT + Argon2id + papéis viewer/operator/admin) — fecha o item que antes era o principal risco aceito da API (ver §4.3 abaixo, atualizado)
 
 **Risco conscientemente aceito, com plano declarado:**
-- Autenticação/autorização na API — Fase 6
-- Gestão de chaves (rotação, cofre) — Fase 6
 - Rate limiting — Fase 6
+- Log de auditoria estruturado por operação — Fase 7 (Maintenance)
 - Limite de número de arquivos por PR no `secscan` — sem data definida
 
 **Implementado, mas ainda não validado em produção real:**
@@ -117,9 +119,9 @@ A fronteira de confiança mais crítica do sistema hoje é a que separa **códig
 - Componentes proprietários mencionados no `ARCHITECTURE.md` que ficam fora deste repositório público.
 - Segurança física ou da conta pessoal do GitHub do mantenedor.
 
-## 7. Aviso explícito sobre o estado atual da API
+## 7. Sobre autenticação e chave JWT
 
-Até a Fase 6 do roadmap ser concluída, **a API do OpenOps não deve ser exposta diretamente na internet pública sem uma camada de autenticação/proxy na frente**. Isso não é uma falha escondida — é a razão deste documento existir: nomear o risco explicitamente em vez de deixar alguém descobrir isso em produção.
+A API exige autenticação (JWT) e RBAC (papéis `viewer`/`operator`/`admin`) em toda rota de negócio desde esta versão. **Importante para quem for rodar em produção**: defina `OPENOPS_JWT_SECRET` com um valor forte e fixo (ex.: `openssl rand -hex 32`) — se essa variável não for definida, uma chave aleatória é gerada a cada reinício do processo, e **todo token emitido antes do reinício vira inválido**. Isso é intencional (evita rodar com uma chave fraca/padrão por engano em produção), mas exige essa configuração explícita.
 
 ## 8. Como contribuir com este documento
 

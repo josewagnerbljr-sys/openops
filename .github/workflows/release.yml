@@ -98,9 +98,72 @@ jobs:
             go/openops-cli/${{ steps.build.outputs.artifact }}.pem
           retention-days: 90
 
+  sbom:
+    name: Gerar SBOM (CycloneDX)
+    runs-on: ubuntu-latest
+    # SBOM = Software Bill of Materials — inventário formal de toda
+    # dependência usada pelo projeto, com versão exata. Quando uma
+    # vulnerabilidade nova é anunciada em alguma lib do ecossistema
+    # Python/Go/Rust, esse arquivo permite responder em segundos "isso
+    # nos afeta?", sem precisar caçar manualmente em três pyproject/
+    # go.mod/Cargo.toml diferentes. Formato CycloneDX, o mesmo usado
+    # por Kubernetes e outros projetos de grande porte.
+    #
+    # NOTA DE TRANSPARÊNCIA: a geração Python foi testada localmente
+    # durante o desenvolvimento deste workflow e produz CycloneDX 1.6
+    # válido. As gerações Go e Rust não puderam ser testadas no
+    # ambiente de desenvolvimento (proxy.golang.org bloqueado, e a
+    # versão do Rust ali instalada era antiga demais para
+    # cargo-cyclonedx) — validadas aqui apenas por sintaxe, a
+    # confirmação real acontece no primeiro run deste workflow no
+    # GitHub Actions.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SBOM — Python
+        run: |
+          pip install cyclonedx-bom
+          pip install -e ".[dev]"
+          cyclonedx-py environment --output-format json --output-file ../sbom-python.json
+        working-directory: python
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: SBOM — Go
+        run: |
+          go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest
+          cyclonedx-gomod mod -json -output ../../sbom-go.json .
+        working-directory: go/openops-cli
+        continue-on-error: true
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: SBOM — Rust
+        run: |
+          cargo install cargo-cyclonedx
+          cargo cyclonedx --format json
+          mv bom.json ../../sbom-rust.json || mv openops-security/bom.json ../../sbom-rust.json
+        working-directory: rust/openops-security
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: |
+            sbom-python.json
+            sbom-go.json
+            sbom-rust.json
+          retention-days: 90
+          if-no-files-found: warn
+
   publish:
     name: Publicar GitHub Release
-    needs: build
+    needs: [build, sbom]
     runs-on: ubuntu-latest
     steps:
       - name: Baixar todos os artefatos de build
@@ -109,6 +172,13 @@ jobs:
           path: dist
           pattern: release-*
           merge-multiple: true
+
+      - name: Baixar o SBOM
+        uses: actions/download-artifact@v4
+        with:
+          name: sbom
+          path: dist
+        continue-on-error: true
 
       - name: Listar o que será publicado
         run: ls -la dist/

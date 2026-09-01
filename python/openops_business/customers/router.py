@@ -2,13 +2,16 @@
 openops_business.customers.router
 ==================================
 
-Rotas REST do módulo de Clientes — mesmo padrão de `products.router`.
+Rotas REST do módulo de Clientes — mesma política de acesso do módulo
+de Produtos: leitura exige login, escrita exige papel "operator"+.
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from pydantic import BaseModel
+
+from openops_api.auth import get_current_user, require_role
 
 from .models import Customer
 from .service import CustomerService
@@ -52,7 +55,12 @@ def _service(request: Request) -> CustomerService:
     return request.app.state.customer_service
 
 
-@router.post("", response_model=CustomerOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=CustomerOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_role("operator"))],
+)
 def create_customer(payload: CustomerCreate, request: Request) -> CustomerOut:
     customer = _service(request).create_customer(
         name=payload.name, email=payload.email, phone=payload.phone, document=payload.document
@@ -60,19 +68,23 @@ def create_customer(payload: CustomerCreate, request: Request) -> CustomerOut:
     return CustomerOut.from_domain(customer)
 
 
-@router.get("", response_model=list[CustomerOut])
+@router.get("", response_model=list[CustomerOut], dependencies=[Depends(get_current_user)])
 def list_customers(request: Request, search: str | None = None) -> list[CustomerOut]:
     customers = _service(request).list_customers(search=search)
     return [CustomerOut.from_domain(c) for c in customers]
 
 
-@router.get("/{customer_id}", response_model=CustomerOut)
+@router.get("/{customer_id}", response_model=CustomerOut, dependencies=[Depends(get_current_user)])
 def get_customer(customer_id: int, request: Request) -> CustomerOut:
     customer = _service(request).get_customer(customer_id)
     return CustomerOut.from_domain(customer)
 
 
-@router.put("/{customer_id}", response_model=CustomerOut)
+@router.put(
+    "/{customer_id}",
+    response_model=CustomerOut,
+    dependencies=[Depends(require_role("operator"))],
+)
 def update_customer(customer_id: int, payload: CustomerUpdate, request: Request) -> CustomerOut:
     customer = _service(request).update_customer(
         customer_id,
@@ -84,6 +96,10 @@ def update_customer(customer_id: int, payload: CustomerUpdate, request: Request)
     return CustomerOut.from_domain(customer)
 
 
-@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{customer_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_role("operator"))],
+)
 def delete_customer(customer_id: int, request: Request) -> None:
     _service(request).delete_customer(customer_id)

@@ -105,6 +105,25 @@ openops/
 
 Toda tag `v*` publicada dispara build cross-plataforma (Linux/macOS/Windows, amd64/arm64) e assinatura keyless via [Sigstore/cosign](https://www.sigstore.dev/) — sem chave privada pra gerenciar, com verificação pública no [Rekor](https://rekor.sigstore.dev/). Veja as instruções de verificação nas notas de cada [release](https://github.com/josewagnerbljr-sys/openops/releases).
 
+## Playground público (sem login)
+
+Antes mesmo de criar conta, dá pra testar a API:
+
+```bash
+# Cifrar um texto com AES-256-GCM real
+curl -X POST http://localhost:8000/security-demo/encrypt \
+  -H "Content-Type: application/json" -d '{"plaintext": "teste"}'
+
+# Ver a adulteração sendo detectada, num passo só
+curl -X POST http://localhost:8000/security-demo/tamper-demo \
+  -H "Content-Type: application/json" -d '{"plaintext": "dado importante"}'
+
+# Inventário de dependências (SBOM), gerado no build da imagem Docker
+curl http://localhost:8000/sbom
+```
+
+Guia completo de todas as rotas (com autenticação, Produtos, Clientes, Estoque): [MANUAL_DE_USO_API.md](MANUAL_DE_USO_API.md).
+
 ## Executando com Docker
 
 ```bash
@@ -125,6 +144,7 @@ OPENOPS_JWT_SECRET=$(openssl rand -hex 32) docker compose up --build
 - [CONTRIBUTING.md](CONTRIBUTING.md) — como contribuir, por nível de experiência
 - [SECURITY.md](SECURITY.md) — como reportar vulnerabilidades
 - [THREAT_MODEL.md](THREAT_MODEL.md) — análise formal de ameaças (STRIDE)
+- [MANUAL_DE_USO_API.md](MANUAL_DE_USO_API.md) — guia passo a passo de todas as rotas da API
 - [MUTATION_TESTING.md](python/MUTATION_TESTING.md) — resultado real de mutation testing sobre o código
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 

@@ -10,13 +10,22 @@ papel mínimo.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Header, Request, status
+from fastapi import APIRouter, Depends, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
 from openops_core.auth import AuthService, TokenPayload, ROLE_LEVELS
 from openops_core.errors import AuthorizationError
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+#: `auto_error=False` porque queremos controlar nós mesmos a mensagem de
+#: erro (via OpenOpsError -> resposta padronizada), não a mensagem
+#: genérica que o FastAPI daria sozinho. Declarar isso como um esquema
+#: de segurança "de verdade" (em vez de um Header cru) é o que faz o
+#: Swagger UI mostrar o botão global "Authorize" 🔒 — sem isso, cada
+#: rota mostra um campo de texto solto pedindo o header manualmente.
+bearer_scheme = HTTPBearer(auto_error=False, description="Cole aqui o token JWT obtido em /auth/login")
 
 
 class RegisterRequest(BaseModel):
@@ -46,17 +55,16 @@ def _auth_service(request: Request) -> AuthService:
 
 def get_current_user(
     request: Request,
-    authorization: str | None = Header(default=None),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> TokenPayload:
-    """Dependência do FastAPI: exige um `Authorization: Bearer <token>`
-    válido. Qualquer rota que dependa disto exige, no mínimo, estar
-    autenticado — não importa o papel.
+    """Dependência do FastAPI: exige um Bearer token JWT válido. Qualquer
+    rota que dependa disto exige, no mínimo, estar autenticado — não
+    importa o papel.
     """
-    if not authorization or not authorization.startswith("Bearer "):
+    if credentials is None or not credentials.credentials:
         raise AuthorizationError("token de autenticação ausente ou mal formatado")
 
-    token = authorization.removeprefix("Bearer ").strip()
-    return _auth_service(request).decode_token(token)
+    return _auth_service(request).decode_token(credentials.credentials)
 
 
 def require_role(minimum: str):

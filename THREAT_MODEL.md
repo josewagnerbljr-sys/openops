@@ -123,6 +123,13 @@ A fronteira de confiança mais crítica do sistema hoje é a que separa **códig
 
 A API exige autenticação (JWT) e RBAC (papéis `viewer`/`operator`/`admin`) em toda rota de negócio desde esta versão. **Importante para quem for rodar em produção**: defina `OPENOPS_JWT_SECRET` com um valor forte e fixo (ex.: `openssl rand -hex 32`) — se essa variável não for definida, uma chave aleatória é gerada a cada reinício do processo, e **todo token emitido antes do reinício vira inválido**. Isso é intencional (evita rodar com uma chave fraca/padrão por engano em produção), mas exige essa configuração explícita.
 
-## 8. Como contribuir com este documento
+## 8. Rotas públicas intencionais (`/security-demo/*`, `/sbom`)
+
+Duas famílias de rota ficam deliberadamente **fora** da autenticação, por design — não é uma omissão:
+
+- **`/security-demo/*`** — playground educacional de AES-256-GCM. Cada chamada gera uma chave efêmera nova, nunca reaproveitada e nunca relacionada a nenhum segredo real do sistema; não há dado de negócio nem segredo algum em risco. Implementação em Python (`cryptography`), independente do crate `openops-security` (Rust) usado no resto da arquitetura.
+- **`/sbom`** — inventário de dependências (CycloneDX), gerado em tempo de build da imagem Docker. Informação já pública em qualquer release; expor via API só facilita a consulta, não adiciona superfície de ataque nova.
+
+## 9. Sobre contribuir com este documento
 
 Encontrou uma ameaça não listada aqui, ou uma mitigação que ficou desatualizada? Veja o processo de reporte em [SECURITY.md](SECURITY.md) — para riscos de segurança real, não abra uma issue pública. Para sugestões de melhoria deste documento em si, um PR normal é bem-vindo.

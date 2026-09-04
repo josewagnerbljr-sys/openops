@@ -18,9 +18,9 @@ services:
       # OBRIGATÓRIO em qualquer uso real — sem isso, uma chave aleatória
       # é gerada a cada reinício do container e todo token emitido
       # antes vira inválido. Gere uma com: openssl rand -hex 32
-      - OPENOPS_JWT_SECRET=${OPENOPS_JWT_SECRET:?defina OPENOPS_JWT_SECRET antes de subir (ex.: openssl rand -hex 32)}
-      - OPENOPS_TRACING_CONSOLE=${OPENOPS_TRACING_CONSOLE:-0}
-      - OPENOPS_DB_PATH=/app/data/openops.db
+      - "OPENOPS_JWT_SECRET=${OPENOPS_JWT_SECRET:?defina OPENOPS_JWT_SECRET antes de subir}"
+      - "OPENOPS_TRACING_CONSOLE=${OPENOPS_TRACING_CONSOLE:-0}"
+      - "OPENOPS_DB_PATH=/app/data/openops.db"
     volumes:
       - openops-data:/app/data
     healthcheck:

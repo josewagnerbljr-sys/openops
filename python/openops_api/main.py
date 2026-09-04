@@ -33,6 +33,8 @@ from openops_core.registry import ModuleRegistry, default_registry
 
 from openops_api.auth import router as auth_router
 from openops_api.observability import setup_tracing, setup_metrics
+from openops_api.security_demo import router as security_demo_router
+from openops_api.sbom import router as sbom_router
 
 from openops_business.products import ProductService
 from openops_business.products import router as products_router
@@ -115,6 +117,8 @@ def create_app(
     app.include_router(products_router)
     app.include_router(customers_router)
     app.include_router(inventory_router)
+    app.include_router(security_demo_router)
+    app.include_router(sbom_router)
 
     setup_tracing(app)
     setup_metrics(app)

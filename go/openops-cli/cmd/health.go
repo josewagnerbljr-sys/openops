@@ -34,6 +34,7 @@ func runHealth(args []string) int {
 		requireFile(*target, "LICENSE", "Licença open source explícita"),
 		requireFile(*target, "SECURITY.md", "Processo público de reporte de vulnerabilidades"),
 		requireFile(*target, "THREAT_MODEL.md", "Análise formal de ameaças (STRIDE)"),
+		requireFile(*target, "MANUAL_DE_USO_API.md", "Guia passo a passo de uso da API"),
 		requireFile(*target, "CONTRIBUTING.md", "Guia de contribuição"),
 		requireDir(*target, ".github/workflows", "Pipeline de CI configurado"),
 	}

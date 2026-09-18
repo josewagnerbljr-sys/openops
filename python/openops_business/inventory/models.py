@@ -13,7 +13,7 @@ tipo de acoplamento que o `EventBus` da Fase 1 existe para mediar.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from openops_core.errors import ValidationError
 
@@ -34,6 +34,11 @@ class StockMovement:
             estoque (pode ser zero).
         reason: motivo opcional, para auditoria (ex.: "recebimento NF
             1234", "perda por validade", "contagem de inventário").
+        batch_number: lote do produto recebido — opcional, mas essencial
+            em verticais regulados (ex.: farmácia) para rastreabilidade.
+        expiry_date: data de validade do lote, quando aplicável (tipicamente
+            preenchida em movimentos "in"). ``None`` quando o produto não
+            tem controle de validade.
         id / created_at: atribuídos pelo repositório.
     """
 
@@ -41,6 +46,8 @@ class StockMovement:
     movement_type: str
     quantity: int
     reason: str = ""
+    batch_number: str = ""
+    expiry_date: date | None = None
     id: int | None = None
     created_at: datetime | None = None
 

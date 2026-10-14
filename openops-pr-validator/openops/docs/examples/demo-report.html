@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>OpenOps CLI — Demonstração do docgen</title>
+<style>
+
+:root { color-scheme: dark; }
+body { background:#0d1117; color:#c9d1d9; font-family: -apple-system, Segoe UI, sans-serif; margin:0; }
+header { padding: 2rem; border-bottom: 1px solid #21262d; }
+header h1 { margin:0; color:#58a6ff; }
+.meta { color:#8b949e; }
+nav { padding: 1rem 2rem; background:#161b22; }
+nav ul { list-style:none; padding:0; display:flex; flex-wrap:wrap; gap:.5rem 1rem; }
+nav a { color:#58a6ff; text-decoration:none; }
+nav a:hover { text-decoration:underline; }
+.lang-badge { font-size:.75rem; background:#21262d; color:#8b949e; padding:.15rem .5rem; border-radius:999px; margin-left:.4rem; }
+main { padding: 1rem 2rem 3rem; }
+section { margin-bottom: 2.5rem; }
+section h2 { border-bottom:1px solid #21262d; padding-bottom:.5rem; font-family: monospace; }
+pre { background:#161b22; border:1px solid #21262d; border-radius:8px; padding:1rem; overflow-x:auto; }
+code { font-family: "Fira Code", Consolas, monospace; font-size:.9rem; line-height:1.5; white-space:pre; }
+.hl-comment { color:#8b949e; font-style:italic; }
+.hl-string { color:#a5d6ff; }
+.hl-number { color:#f2cc60; }
+.hl-keyword { color:#ff7b72; font-weight:600; }
+
+</style>
+</head>
+<body>
+<header><h1>OpenOps CLI — Demonstração do docgen</h1><p class="meta">8 arquivo(s) — gerado por openops-cli docgen</p></header>
+<nav><h2>Arquivos</h2><ul>
+<li><a href="#file-0">docgen.go</a> <span class="lang-badge">Go</span></li>
+<li><a href="#file-1">docgen_test.go</a> <span class="lang-badge">Go</span></li>
+<li><a href="#file-2">health.go</a> <span class="lang-badge">Go</span></li>
+<li><a href="#file-3">health_test.go</a> <span class="lang-badge">Go</span></li>
+<li><a href="#file-4">highlight.go</a> <span class="lang-badge">Go</span></li>
+<li><a href="#file-5">highlight_test.go</a> <span class="lang-badge">Go</span></li>
+<li><a href="#file-6">root.go</a> <span class="lang-badge">Go</span></li>
+<li><a href="#file-7">version.go</a> <span class="lang-badge">Go</span></li>
+</ul></nav>
+<main>
+<section id="file-0">
+<h2>docgen.go <span class="lang-badge">Go</span></h2>
+<pre><code><span class="hl-comment">// Comando docgen: gera um relatório HTML autocontido (sem dependências</span>
+<span class="hl-comment">// externas, sem CDN) a partir do código-fonte de um diretório, detectando</span>
+<span class="hl-comment">// a linguagem de cada arquivo pela extensão e aplicando realce de</span>
+<span class="hl-comment">// sintaxe. Pensado para demonstrações, portfólio e documentação rápida</span>
+<span class="hl-comment">// de qualquer projeto — não só do próprio OpenOps.</span>
+<span class="hl-keyword">package</span> cmd
+
+<span class="hl-keyword">import</span> (
+	<span class="hl-string">&#34;bytes&#34;</span>
+	<span class="hl-string">&#34;fmt&#34;</span>
+	<span class="hl-string">&#34;html&#34;</span>
+	<span class="hl-string">&#34;os&#34;</span>
+	<span class="hl-string">&#34;path/filepath&#34;</span>
+	<span class="hl-string">&#34;sort&#34;</span>
+	<span class="hl-string">&#34;strings&#34;</span>
+)
+
+<span class="hl-keyword">var</span> excludedDirs = <span class="hl-keyword">map</span>[string]bool{
+	<span class="hl-string">&#34;.git&#34;</span>: <span class="hl-keyword">true</span>, <span class="hl-string">&#34;target&#34;</span>: <span class="hl-keyword">true</span>, <span class="hl-string">&#34;node_modules&#34;</span>: <span class="hl-keyword">true</span>,
+	<span class="hl-string">&#34;__pycache__&#34;</span>: <span class="hl-keyword">true</span>, <span class="hl-string">&#34;.pytest_cache&#34;</span>: <span class="hl-keyword">true</span>, <span class="hl-string">&#34;dist&#34;</span>: <span class="hl-keyword">true</span>,
+	<span class="hl-string">&#34;build&#34;</span>: <span class="hl-keyword">true</span>, <span class="hl-string">&#34;.venv&#34;</span>: <span class="hl-keyword">true</span>, <span class="hl-string">&#34;venv&#34;</span>: <span class="hl-keyword">true</span>,
+}
+
+<span class="hl-keyword">const</span> maxFileSize = <span class="hl-number">300</span> * <span class="hl-number">1024</span> <span class="hl-comment">// 300 KB por arquivo</span>
+
+<span class="hl-keyword">func</span> init() {
+	Register(&amp;Command{
+		Name:        <span class="hl-string">&#34;docgen&#34;</span>,
+		Description: <span class="hl-string">&#34;Gera um relatório HTML com realce de sintaxe a partir de um diretório de código&#34;</span>,
+		Run:         runDocgen,
+	})
+}
+
+<span class="hl-keyword">type</span> sourceFile <span class="hl-keyword">struct</span> {
+	RelPath string
+	Lang    string
+	Content string
+}
+
+<span class="hl-keyword">func</span> runDocgen(args []string) int {
+	fs := newFlagSet(<span class="hl-string">&#34;docgen&#34;</span>)
+	src := fs.String(<span class="hl-string">&#34;path&#34;</span>, <span class="hl-string">&#34;.&#34;</span>, <span class="hl-string">&#34;diretório raiz do código-fonte a documentar&#34;</span>)
+	out := fs.String(<span class="hl-string">&#34;out&#34;</span>, <span class="hl-string">&#34;openops-docs.html&#34;</span>, <span class="hl-string">&#34;caminho do arquivo HTML de saída&#34;</span>)
+	title := fs.String(<span class="hl-string">&#34;title&#34;</span>, <span class="hl-string">&#34;Relatório de Código&#34;</span>, <span class="hl-string">&#34;título do documento gerado&#34;</span>)
+	_ = fs.Parse(args)
+
+	files, err := collectSourceFiles(*src)
+	<span class="hl-keyword">if</span> err != <span class="hl-keyword">nil</span> {
+		fmt.Fprintf(os.Stderr, <span class="hl-string">&#34;erro ao ler %s: %v\n&#34;</span>, *src, err)
+		<span class="hl-keyword">return</span> <span class="hl-number">1</span>
+	}
+
+	<span class="hl-keyword">if</span> len(files) == <span class="hl-number">0</span> {
+		fmt.Println(<span class="hl-string">&#34;nenhum arquivo de código-fonte reconhecido foi encontrado.&#34;</span>)
+		<span class="hl-keyword">return</span> <span class="hl-number">0</span>
+	}
+
+	report := renderReport(*title, files)
+
+	<span class="hl-keyword">if</span> err := os.WriteFile(*out, []byte(report), 0o644); err != <span class="hl-keyword">nil</span> {
+		fmt.Fprintf(os.Stderr, <span class="hl-string">&#34;erro ao escrever %s: %v\n&#34;</span>, *out, err)
+		<span class="hl-keyword">return</span> <span class="hl-number">1</span>
+	}
+
+	fmt.Printf(<span class="hl-string">&#34;Relatório gerado: %s (%d arquivo(s))\n&#34;</span>, *out, len(files))
+	<span class="hl-keyword">return</span> <span class="hl-number">0</span>
+}
+
+<span class="hl-comment">// collectSourceFiles percorre root recursivamente, ignora diretórios</span>
+<span class="hl-comment">// irrelevantes e arquivos grandes/binários, e devolve os arquivos em</span>
+<span class="hl-comment">// ordem alfabética estável.</span>
+<span class="hl-keyword">func</span> collectSourceFiles(root string) ([]sourceFile, error) {
+	<span class="hl-keyword">var</span> files []sourceFile
+
+	err := filepath.Walk(root, <span class="hl-keyword">func</span>(path string, info os.FileInfo, err error) error {
+		<span class="hl-keyword">if</span> err != <span class="hl-keyword">nil</span> {
+			<span class="hl-keyword">return</span> err
+		}
+		<span class="hl-keyword">if</span> info.IsDir() {
+			<span class="hl-keyword">if</span> excludedDirs[info.Name()] {
+				<span class="hl-keyword">return</span> filepath.SkipDir
+			}
+			<span class="hl-keyword">return</span> <span class="hl-keyword">nil</span>
+		}
+		<span class="hl-keyword">if</span> info.Size() &gt; maxFileSize || info.Size() == <span class="hl-number">0</span> {
+			<span class="hl-keyword">return</span> <span class="hl-keyword">nil</span>
+		}
+
+		data, readErr := os.ReadFile(path)
+		<span class="hl-keyword">if</span> readErr != <span class="hl-keyword">nil</span> || looksBinary(data) {
+			<span class="hl-keyword">return</span> <span class="hl-keyword">nil</span>
+		}
+
+		rel, relErr := filepath.Rel(root, path)
+		<span class="hl-keyword">if</span> relErr != <span class="hl-keyword">nil</span> {
+			rel = path
+		}
+
+		lang := detectLanguage(path)
+
+		files = append(files, sourceFile{
+			RelPath: filepath.ToSlash(rel),
+			Lang:    lang,
+			Content: string(data),
+		})
+		<span class="hl-keyword">return</span> <span class="hl-keyword">nil</span>
+	})
+
+	sort.Slice(files, <span class="hl-keyword">func</span>(i, j int) bool { <span class="hl-keyword">return</span> files[i].RelPath &lt; files[j].RelPath })
+
+	<span class="hl-keyword">return</span> files, err
+}
+
+<span class="hl-comment">// looksBinary usa uma heurística simples: presença de byte nulo nos</span>
+<span class="hl-comment">// primeiros 512 bytes indica conteúdo não-textual.</span>
+<span class="hl-keyword">func</span> looksBinary(data []byte) bool {
+	limit := len(data)
+	<span class="hl-keyword">if</span> limit &gt; <span class="hl-number">512</span> {
+		limit = <span class="hl-number">512</span>
+	}
+	<span class="hl-keyword">return</span> bytes.IndexByte(data[:limit], <span class="hl-number">0</span>) != -<span class="hl-number">1</span>
+}
+
+<span class="hl-keyword">func</span> renderReport(title string, files []sourceFile) string {
+	<span class="hl-keyword">var</span> b strings.Builder
+
+	b.WriteString(<span class="hl-string">&#34;&lt;!DOCTYPE html&gt;\n&lt;html lang=\&#34;pt-BR\&#34;&gt;\n&lt;head&gt;\n&lt;meta charset=\&#34;UTF-8\&#34;&gt;\n&#34;</span>)
+	b.WriteString(<span class="hl-string">&#34;&lt;title&gt;&#34;</span> + html.EscapeString(title) + <span class="hl-string">&#34;&lt;/title&gt;\n&#34;</span>)
+	b.WriteString(<span class="hl-string">&#34;&lt;style&gt;\n&#34;</span> + reportCSS + <span class="hl-string">&#34;\n&lt;/style&gt;\n&lt;/head&gt;\n&lt;body&gt;\n&#34;</span>)
+
+	b.WriteString(<span class="hl-string">&#34;&lt;header&gt;&lt;h1&gt;&#34;</span> + html.EscapeString(title) + <span class="hl-string">&#34;&lt;/h1&gt;&#34;</span>)
+	b.WriteString(fmt.Sprintf(<span class="hl-string">&#34;&lt;p class=\&#34;meta\&#34;&gt;%d arquivo(s) — gerado por openops-cli docgen&lt;/p&gt;&lt;/header&gt;\n&#34;</span>, len(files)))
+
+	b.WriteString(<span class="hl-string">&#34;&lt;nav&gt;&lt;h2&gt;Arquivos&lt;/h2&gt;&lt;ul&gt;\n&#34;</span>)
+	<span class="hl-keyword">for</span> i, f := <span class="hl-keyword">range</span> files {
+		b.WriteString(fmt.Sprintf(
+			<span class="hl-string">&#34;&lt;li&gt;&lt;a href=\&#34;#file-%d\&#34;&gt;%s&lt;/a&gt; &lt;span class=\&#34;lang-badge\&#34;&gt;%s&lt;/span&gt;&lt;/li&gt;\n&#34;</span>,
+			i, html.EscapeString(f.RelPath), html.EscapeString(languageLabel(f.Lang)),
+		))
+	}
+	b.WriteString(<span class="hl-string">&#34;&lt;/ul&gt;&lt;/nav&gt;\n&lt;main&gt;\n&#34;</span>)
+
+	<span class="hl-keyword">for</span> i, f := <span class="hl-keyword">range</span> files {
+		b.WriteString(fmt.Sprintf(<span class="hl-string">&#34;&lt;section id=\&#34;file-%d\&#34;&gt;\n&#34;</span>, i))
+		b.WriteString(fmt.Sprintf(
+			<span class="hl-string">&#34;&lt;h2&gt;%s &lt;span class=\&#34;lang-badge\&#34;&gt;%s&lt;/span&gt;&lt;/h2&gt;\n&#34;</span>,
+			html.EscapeString(f.RelPath), html.EscapeString(languageLabel(f.Lang)),
+		))
+		b.WriteString(<span class="hl-string">&#34;&lt;pre&gt;&lt;code&gt;&#34;</span>)
+		b.WriteString(highlight(f.Content, f.Lang))
+		b.WriteString(<span class="hl-string">&#34;&lt;/code&gt;&lt;/pre&gt;\n&lt;/section&gt;\n&#34;</span>)
+	}
+
+	b.WriteString(<span class="hl-string">&#34;&lt;/main&gt;\n&lt;/body&gt;\n&lt;/html&gt;\n&#34;</span>)
+	<span class="hl-keyword">return</span> b.String()
+}
+
+<span class="hl-keyword">const</span> reportCSS = `
+:root { color-scheme: dark; }
+body { background:#0d1117; color:#c9d1d9; font-family: -apple-system, Segoe UI, sans-serif; margin:<span class="hl-number">0</span>; }
+header { padding: 2rem; border-bottom: 1px solid #21262d; }
+header h1 { margin:<span class="hl-number">0</span>; color:#58a6ff; }
+.meta { color:#8b949e; }
+nav { padding: 1rem 2rem; background:#161b22; }
+nav ul { list-style:none; padding:<span class="hl-number">0</span>; display:flex; flex-wrap:wrap; gap:.5rem 1rem; }
+nav a { color:#58a6ff; text-decoration:none; }
+nav a:hover { text-decoration:underline; }
+.lang-badge { font-size:.75rem; background:#21262d; color:#8b949e; padding:.15rem .5rem; border-radius:999px; margin-left:.4rem; }
+main { padding: 1rem 2rem 3rem; }
+section { margin-bottom: <span class="hl-number">2</span>.5rem; }
+section h2 { border-bottom:1px solid #21262d; padding-bottom:.5rem; font-family: monospace; }
+pre { background:#161b22; border:1px solid #21262d; border-radius:8px; padding:1rem; overflow-x:auto; }
+code { font-family: <span class="hl-string">&#34;Fira Code&#34;</span>, Consolas, monospace; font-size:.9rem; line-height:<span class="hl-number">1.5</span>; white-space:pre; }
+.hl-comment { color:#8b949e; font-style:italic; }
+.hl-string { color:#a5d6ff; }
+.hl-number { color:#f2cc60; }
+.hl-keyword { color:#ff7b72; font-weight:<span class="hl-number">600</span>; }
+`
+</code></pre>
+</section>
+<section id="file-1">
+<h2>docgen_test.go <span class="lang-badge">Go</span></h2>
+<pre><code><span class="hl-keyword">package</span> cmd
+
+<span class="hl-keyword">import</span> (
+	<span class="hl-string">&#34;os&#34;</span>
+	<span class="hl-string">&#34;path/filepath&#34;</span>
+	<span class="hl-string">&#34;strings&#34;</span>
+	<span class="hl-string">&#34;testing&#34;</span>
+)
+
+<span class="hl-keyword">func</span> TestCollectSourceFiles_FindsAndSkipsCorrectly(t *testing.T) {
+	dir := t.TempDir()
+
+	mustWrite(t, filepath.Join(dir, <span class="hl-string">&#34;main.py&#34;</span>), <span class="hl-string">&#34;print(&#39;oi&#39;)&#34;</span>)
+	mustWrite(t, filepath.Join(dir, <span class="hl-string">&#34;README.txt&#34;</span>), <span class="hl-string">&#34;sem linguagem reconhecida, mas ainda texto&#34;</span>)
+
+	skipDir := filepath.Join(dir, <span class="hl-string">&#34;node_modules&#34;</span>)
+	<span class="hl-keyword">if</span> err := os.Mkdir(skipDir, 0o755); err != <span class="hl-keyword">nil</span> {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(skipDir, <span class="hl-string">&#34;lib.js&#34;</span>), <span class="hl-string">&#34;não deveria aparecer&#34;</span>)
+
+	files, err := collectSourceFiles(dir)
+	<span class="hl-keyword">if</span> err != <span class="hl-keyword">nil</span> {
+		t.Fatalf(<span class="hl-string">&#34;erro inesperado: %v&#34;</span>, err)
+	}
+
+	<span class="hl-keyword">if</span> len(files) != <span class="hl-number">2</span> {
+		t.Fatalf(<span class="hl-string">&#34;esperado 2 arquivos, obteve %d: %+v&#34;</span>, len(files), files)
+	}
+
+	<span class="hl-keyword">for</span> _, f := <span class="hl-keyword">range</span> files {
+		<span class="hl-keyword">if</span> strings.Contains(f.RelPath, <span class="hl-string">&#34;node_modules&#34;</span>) {
+			t.Errorf(<span class="hl-string">&#34;node_modules não deveria ter sido incluído: %s&#34;</span>, f.RelPath)
+		}
+	}
+}
+
+<span class="hl-keyword">func</span> TestCollectSourceFiles_SkipsBinaryContent(t *testing.T) {
+	dir := t.TempDir()
+
+	binPath := filepath.Join(dir, <span class="hl-string">&#34;image.bin&#34;</span>)
+	<span class="hl-keyword">if</span> err := os.WriteFile(binPath, []byte{0x00, 0x01, 0x02, 0x03}, 0o644); err != <span class="hl-keyword">nil</span> {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(dir, <span class="hl-string">&#34;ok.go&#34;</span>), <span class="hl-string">&#34;package main&#34;</span>)
+
+	files, err := collectSourceFiles(dir)
+	<span class="hl-keyword">if</span> err != <span class="hl-keyword">nil</span> {
+		t.Fatalf(<span class="hl-string">&#34;erro inesperado: %v&#34;</span>, err)
+	}
+
+	<span class="hl-keyword">if</span> len(files) != <span class="hl-number">1</span> || files[<span class="hl-number">0</span>].RelPath != <span class="hl-string">&#34;ok.go&#34;</span> {
+		t.Errorf(<span class="hl-string">&#34;esperado apenas ok.go, obteve: %+v&#34;</span>, files)
+	}
+}
+
+<span class="hl-keyword">func</span> TestRunDocgen_GeneratesValidHTMLFile(t *testing.T) {
+	srcDir := t.TempDir()
+	mustWrite(t, filepath.Join(srcDir, <span class="hl-string">&#34;main.go&#34;</span>), <span class="hl-string">&#34;package main\n\nfunc main() {}\n&#34;</span>)
+
+	outFile := filepath.Join(t.TempDir(), <span class="hl-string">&#34;report.html&#34;</span>)
+
+	exitCode := runDocgen([]string{<span class="hl-string">&#34;-path&#34;</span>, srcDir, <span class="hl-string">&#34;-out&#34;</span>, outFile, <span class="hl-string">&#34;-title&#34;</span>, <span class="hl-string">&#34;Teste&#34;</span>})
+
+	<span class="hl-keyword">if</span> exitCode != <span class="hl-number">0</span> {
+		t.Fatalf(<span class="hl-string">&#34;esperado exit code 0, obteve %d&#34;</span>, exitCode)
+	}
+
+	content, err := os.ReadFile(outFile)
+	<span class="hl-keyword">if</span> err != <span class="hl-keyword">nil</span> {
+		t.Fatalf(<span class="hl-string">&#34;arquivo de saída não foi criado: %v&#34;</span>, err)
+	}
+
+	html := string(content)
+	<span class="hl-keyword">if</span> !strings.Contains(html, <span class="hl-string">&#34;&lt;!DOCTYPE html&gt;&#34;</span>) {
+		t.Error(<span class="hl-string">&#34;saída não parece um documento HTML válido&#34;</span>)
+	}
+	<span class="hl-keyword">if</span> !strings.Contains(html, <span class="hl-string">&#34;main.go&#34;</span>) {
+		t.Error(<span class="hl-string">&#34;nome do arquivo-fonte não aparece no relatório&#34;</span>)
+	}
+	<span class="hl-keyword">if</span> !strings.Contains(html, <span class="hl-string">&#34;Teste&#34;</span>) {
+		t.Error(<span class="hl-string">&#34;título customizado não aparece no relatório&#34;</span>)
+	}
+}
+
+<span class="hl-keyword">func</span> mustWrite(t *testing.T, path, content string) {
+	t.Helper()
+	<span class="hl-keyword">if</span> err := os.WriteFile(path, []byte(content), 0o644); err != <span class="hl-keyword">nil</span> {
+		t.Fatalf(<span class="hl-string">&#34;falha ao escrever arquivo de teste %s: %v&#34;</span>, path, err)
+	}
+}
+</code></pre>
+</section>
+<section id="file-2">
+<h2>health.go <span class="lang-badge">Go</span></h2>
+<pre><code><span class="hl-keyword">package</span> cmd
+
+<span class="hl-keyword">import</span> (
+	<span class="hl-string">&#34;fmt&#34;</span>
+	<span class="hl-string">&#34;os&#34;</span>
+	<span class="hl-string">&#34;path/filepath&#34;</span>
+)
+
+<span class="hl-comment">// healthCheck representa uma verificação individual do Structural Health</span>
+<span class="hl-comment">// Engine. Esta é a primeira fatia real (Fase 0/1) do motor completo</span>
+<span class="hl-comment">// descrito no item 12 do documento mestre — cresce incrementalmente nas</span>
+<span class="hl-comment">// fases seguintes (imports, dependências, AST, migrations, etc.).</span>
+<span class="hl-keyword">type</span> healthCheck <span class="hl-keyword">struct</span> {
+	Name     string
+	Severity string <span class="hl-comment">// &#34;PASS&#34;, &#34;WARNING&#34; ou &#34;CRITICAL&#34;</span>
+	Detail   string
+}
+
+<span class="hl-keyword">func</span> init() {
+	Register(&amp;Command{
+		Name:        <span class="hl-string">&#34;health&#34;</span>,
+		Description: <span class="hl-string">&#34;Executa um check-up estrutural básico do repositório&#34;</span>,
+		Run:         runHealth,
+	})
+}
+
+<span class="hl-keyword">func</span> runHealth(args []string) int {
+	fs := newFlagSet(<span class="hl-string">&#34;health&#34;</span>)
+	target := fs.String(<span class="hl-string">&#34;path&#34;</span>, <span class="hl-string">&#34;.&#34;</span>, <span class="hl-string">&#34;diretório raiz do repositório a analisar&#34;</span>)
+	_ = fs.Parse(args)
+
+	checks := []healthCheck{
+		requireFile(*target, <span class="hl-string">&#34;README.md&#34;</span>, <span class="hl-string">&#34;Documentação de entrada do projeto&#34;</span>),
+		requireFile(*target, <span class="hl-string">&#34;LICENSE&#34;</span>, <span class="hl-string">&#34;Licença open source explícita&#34;</span>),
+		requireFile(*target, <span class="hl-string">&#34;SECURITY.md&#34;</span>, <span class="hl-string">&#34;Processo público de reporte de vulnerabilidades&#34;</span>),
+		requireFile(*target, <span class="hl-string">&#34;CONTRIBUTING.md&#34;</span>, <span class="hl-string">&#34;Guia de contribuição&#34;</span>),
+		requireDir(*target, <span class="hl-string">&#34;.github/workflows&#34;</span>, <span class="hl-string">&#34;Pipeline de CI configurado&#34;</span>),
+	}
+
+	critical, warnings := <span class="hl-number">0</span>, <span class="hl-number">0</span>
+	<span class="hl-keyword">for</span> _, c := <span class="hl-keyword">range</span> checks {
+		fmt.Printf(<span class="hl-string">&#34;%-10s %-40s %s\n&#34;</span>, c.Severity, c.Name, c.Detail)
+		<span class="hl-keyword">switch</span> c.Severity {
+		<span class="hl-keyword">case</span> <span class="hl-string">&#34;CRITICAL&#34;</span>:
+			critical++
+		<span class="hl-keyword">case</span> <span class="hl-string">&#34;WARNING&#34;</span>:
+			warnings++
+		}
+	}
+
+	total := len(checks)
+	passed := total - critical - warnings
+	score := <span class="hl-number">0</span>
+	<span class="hl-keyword">if</span> total &gt; <span class="hl-number">0</span> {
+		score = (passed * <span class="hl-number">100</span>) / total
+	}
+
+	fmt.Println()
+	fmt.Printf(<span class="hl-string">&#34;CRITICAL %d | WARNINGS %d | HEALTH %d%%\n&#34;</span>, critical, warnings, score)
+
+	<span class="hl-keyword">if</span> critical &gt; <span class="hl-number">0</span> {
+		<span class="hl-keyword">return</span> <span class="hl-number">1</span>
+	}
+	<span class="hl-keyword">return</span> <span class="hl-number">0</span>
+}
+
+<span class="hl-keyword">func</span> requireFile(root, relPath, detail string) healthCheck {
+	full := filepath.Join(root, relPath)
+	info, err := os.Stat(full)
+	<span class="hl-keyword">if</span> err != <span class="hl-keyword">nil</span> || info.IsDir() {
+		<span class="hl-keyword">return</span> healthCheck{Name: relPath, Severity: <span class="hl-string">&#34;WARNING&#34;</span>, Detail: detail + <span class="hl-string">&#34; (ausente)&#34;</span>}
+	}
+	<span class="hl-keyword">return</span> healthCheck{Name: relPath, Severity: <span class="hl-string">&#34;PASS&#34;</span>, Detail: detail}
+}
+
+<span class="hl-keyword">func</span> requireDir(root, relPath, detail string) healthCheck {
+	full := filepath.Join(root, relPath)
+	info, err := os.Stat(full)
+	<span class="hl-keyword">if</span> err != <span class="hl-keyword">nil</span> || !info.IsDir() {
+		<span class="hl-keyword">return</span> healthCheck{Name: relPath, Severity: <span class="hl-string">&#34;WARNING&#34;</span>, Detail: detail + <span class="hl-string">&#34; (ausente)&#34;</span>}
+	}
+	<span class="hl-keyword">return</span> healthCheck{Name: relPath, Severity: <span class="hl-string">&#34;PASS&#34;</span>, Detail: detail}
+}
+</code></pre>
+</section>
+<section id="file-3">
+<h2>health_test.go <span class="lang-badge">Go</span></h2>
+<pre><code><span class="hl-keyword">package</span> cmd
+
+<span class="hl-keyword">import</span> (
+	<span class="hl-string">&#34;os&#34;</span>
+	<span class="hl-string">&#34;path/filepath&#34;</span>
+	<span class="hl-string">&#34;testing&#34;</span>
+)
+
+<span class="hl-keyword">func</span> TestRequireFile_Present(t *testing.T) {
+	dir := t.TempDir()
+	<span class="hl-keyword">if</span> err := os.WriteFile(filepath.Join(dir, <span class="hl-string">&#34;README.md&#34;</span>), []byte(<span class="hl-string">&#34;# hi&#34;</span>), 0o644); err != <span class="hl-keyword">nil</span> {
+		t.Fatal(err)
+	}
+
+	check := requireFile(dir, <span class="hl-string">&#34;README.md&#34;</span>, <span class="hl-string">&#34;detalhe&#34;</span>)
+
+	<span class="hl-keyword">if</span> check.Severity != <span class="hl-string">&#34;PASS&#34;</span> {
+		t.Errorf(<span class="hl-string">&#34;esperado PASS, obteve %s&#34;</span>, check.Severity)
+	}
+}
+
+<span class="hl-keyword">func</span> TestRequireFile_Missing(t *testing.T) {
+	dir := t.TempDir()
+
+	check := requireFile(dir, <span class="hl-string">&#34;README.md&#34;</span>, <span class="hl-string">&#34;detalhe&#34;</span>)
+
+	<span class="hl-keyword">if</span> check.Severity != <span class="hl-string">&#34;WARNING&#34;</span> {
+		t.Errorf(<span class="hl-string">&#34;esperado WARNING, obteve %s&#34;</span>, check.Severity)
+	}
+}
+
+<span class="hl-keyword">func</span> TestRequireDir_Present(t *testing.T) {
+	dir := t.TempDir()
+	<span class="hl-keyword">if</span> err := os.Mkdir(filepath.Join(dir, <span class="hl-string">&#34;workflows&#34;</span>), 0o755); err != <span class="hl-keyword">nil</span> {
+		t.Fatal(err)
+	}
+
+	check := requireDir(dir, <span class="hl-string">&#34;workflows&#34;</span>, <span class="hl-string">&#34;detalhe&#34;</span>)
+
+	<span class="hl-keyword">if</span> check.Severity != <span class="hl-string">&#34;PASS&#34;</span> {
+		t.Errorf(<span class="hl-string">&#34;esperado PASS, obteve %s&#34;</span>, check.Severity)
+	}
+}
+
+<span class="hl-keyword">func</span> TestRunHealth_ReturnsNonZeroOnlyWhenCritical(t *testing.T) {
+	dir := t.TempDir()
+
+	exitCode := runHealth([]string{<span class="hl-string">&#34;-path&#34;</span>, dir})
+
+	<span class="hl-comment">// Ausência de arquivos hoje gera apenas WARNING, nunca CRITICAL,</span>
+	<span class="hl-comment">// então o exit code esperado é 0.</span>
+	<span class="hl-keyword">if</span> exitCode != <span class="hl-number">0</span> {
+		t.Errorf(<span class="hl-string">&#34;esperado exit code 0 (sem critical), obteve %d&#34;</span>, exitCode)
+	}
+}
+</code></pre>
+</section>
+<section id="file-4">
+<h2>highlight.go <span class="lang-badge">Go</span></h2>
+<pre><code><span class="hl-keyword">package</span> cmd
+
+<span class="hl-keyword">import</span> (
+	<span class="hl-string">&#34;html&#34;</span>
+	<span class="hl-string">&#34;path/filepath&#34;</span>
+	<span class="hl-string">&#34;regexp&#34;</span>
+	<span class="hl-string">&#34;strings&#34;</span>
+)
+
+<span class="hl-comment">// languageSpec descreve as regras de realce de uma linguagem: um único</span>
+<span class="hl-comment">// regexp combinado, com grupos nomeados (comment/string/number/keyword),</span>
+<span class="hl-comment">// compilado uma vez e reutilizado.</span>
+<span class="hl-keyword">type</span> languageSpec <span class="hl-keyword">struct</span> {
+	Label string
+	regex *regexp.Regexp
+}
+
+<span class="hl-keyword">var</span> extensionToLanguage = <span class="hl-keyword">map</span>[string]string{
+	<span class="hl-string">&#34;.py&#34;</span>:   <span class="hl-string">&#34;python&#34;</span>,
+	<span class="hl-string">&#34;.go&#34;</span>:   <span class="hl-string">&#34;go&#34;</span>,
+	<span class="hl-string">&#34;.rs&#34;</span>:   <span class="hl-string">&#34;rust&#34;</span>,
+	<span class="hl-string">&#34;.js&#34;</span>:   <span class="hl-string">&#34;javascript&#34;</span>,
+	<span class="hl-string">&#34;.jsx&#34;</span>:  <span class="hl-string">&#34;javascript&#34;</span>,
+	<span class="hl-string">&#34;.ts&#34;</span>:   <span class="hl-string">&#34;typescript&#34;</span>,
+	<span class="hl-string">&#34;.tsx&#34;</span>:  <span class="hl-string">&#34;typescript&#34;</span>,
+	<span class="hl-string">&#34;.json&#34;</span>: <span class="hl-string">&#34;json&#34;</span>,
+}
+
+<span class="hl-keyword">var</span> languages = <span class="hl-keyword">map</span>[string]*languageSpec{
+	<span class="hl-string">&#34;python&#34;</span>:     buildLanguage(<span class="hl-string">&#34;Python&#34;</span>, pyKeywords, `#[^\n]*`),
+	<span class="hl-string">&#34;go&#34;</span>:         buildLanguage(<span class="hl-string">&#34;Go&#34;</span>, goKeywords, `<span class="hl-comment">//[^\n]*`),</span>
+	<span class="hl-string">&#34;rust&#34;</span>:       buildLanguage(<span class="hl-string">&#34;Rust&#34;</span>, rustKeywords, `<span class="hl-comment">//[^\n]*`),</span>
+	<span class="hl-string">&#34;javascript&#34;</span>: buildLanguage(<span class="hl-string">&#34;JavaScript&#34;</span>, jsKeywords, `<span class="hl-comment">//[^\n]*`),</span>
+	<span class="hl-string">&#34;typescript&#34;</span>: buildLanguage(<span class="hl-string">&#34;TypeScript&#34;</span>, jsKeywords, `<span class="hl-comment">//[^\n]*`),</span>
+	<span class="hl-string">&#34;json&#34;</span>:       buildLanguage(<span class="hl-string">&#34;JSON&#34;</span>, jsonKeywords, ``),
+}
+
+<span class="hl-keyword">var</span> pyKeywords = []string{
+	<span class="hl-string">&#34;def&#34;</span>, <span class="hl-string">&#34;class&#34;</span>, <span class="hl-string">&#34;import&#34;</span>, <span class="hl-string">&#34;from&#34;</span>, <span class="hl-string">&#34;return&#34;</span>, <span class="hl-string">&#34;if&#34;</span>, <span class="hl-string">&#34;elif&#34;</span>, <span class="hl-string">&#34;else&#34;</span>, <span class="hl-string">&#34;for&#34;</span>,
+	<span class="hl-string">&#34;while&#34;</span>, <span class="hl-string">&#34;try&#34;</span>, <span class="hl-string">&#34;except&#34;</span>, <span class="hl-string">&#34;finally&#34;</span>, <span class="hl-string">&#34;with&#34;</span>, <span class="hl-string">&#34;as&#34;</span>, <span class="hl-string">&#34;pass&#34;</span>, <span class="hl-string">&#34;break&#34;</span>,
+	<span class="hl-string">&#34;continue&#34;</span>, <span class="hl-string">&#34;lambda&#34;</span>, <span class="hl-string">&#34;yield&#34;</span>, <span class="hl-string">&#34;global&#34;</span>, <span class="hl-string">&#34;nonlocal&#34;</span>, <span class="hl-string">&#34;assert&#34;</span>, <span class="hl-string">&#34;raise&#34;</span>,
+	<span class="hl-string">&#34;in&#34;</span>, <span class="hl-string">&#34;is&#34;</span>, <span class="hl-string">&#34;not&#34;</span>, <span class="hl-string">&#34;and&#34;</span>, <span class="hl-string">&#34;or&#34;</span>, <span class="hl-string">&#34;None&#34;</span>, <span class="hl-string">&#34;True&#34;</span>, <span class="hl-string">&#34;False&#34;</span>, <span class="hl-string">&#34;self&#34;</span>,
+	<span class="hl-string">&#34;async&#34;</span>, <span class="hl-string">&#34;await&#34;</span>, <span class="hl-string">&#34;del&#34;</span>, <span class="hl-string">&#34;match&#34;</span>, <span class="hl-string">&#34;case&#34;</span>,
+}
+
+<span class="hl-keyword">var</span> goKeywords = []string{
+	<span class="hl-string">&#34;func&#34;</span>, <span class="hl-string">&#34;package&#34;</span>, <span class="hl-string">&#34;import&#34;</span>, <span class="hl-string">&#34;return&#34;</span>, <span class="hl-string">&#34;if&#34;</span>, <span class="hl-string">&#34;else&#34;</span>, <span class="hl-string">&#34;for&#34;</span>, <span class="hl-string">&#34;range&#34;</span>,
+	<span class="hl-string">&#34;switch&#34;</span>, <span class="hl-string">&#34;case&#34;</span>, <span class="hl-string">&#34;default&#34;</span>, <span class="hl-string">&#34;break&#34;</span>, <span class="hl-string">&#34;continue&#34;</span>, <span class="hl-string">&#34;struct&#34;</span>, <span class="hl-string">&#34;interface&#34;</span>,
+	<span class="hl-string">&#34;map&#34;</span>, <span class="hl-string">&#34;chan&#34;</span>, <span class="hl-string">&#34;go&#34;</span>, <span class="hl-string">&#34;defer&#34;</span>, <span class="hl-string">&#34;select&#34;</span>, <span class="hl-string">&#34;var&#34;</span>, <span class="hl-string">&#34;const&#34;</span>, <span class="hl-string">&#34;type&#34;</span>, <span class="hl-string">&#34;nil&#34;</span>,
+	<span class="hl-string">&#34;true&#34;</span>, <span class="hl-string">&#34;false&#34;</span>, <span class="hl-string">&#34;iota&#34;</span>, <span class="hl-string">&#34;fallthrough&#34;</span>, <span class="hl-string">&#34;goto&#34;</span>,
+}
+
+<span class="hl-keyword">var</span> rustKeywords = []string{
+	<span class="hl-string">&#34;fn&#34;</span>, <span class="hl-string">&#34;let&#34;</span>, <span class="hl-string">&#34;mut&#34;</span>, <span class="hl-string">&#34;struct&#34;</span>, <span class="hl-string">&#34;enum&#34;</span>, <span class="hl-string">&#34;impl&#34;</span>, <span class="hl-string">&#34;trait&#34;</span>, <span class="hl-string">&#34;pub&#34;</span>, <span class="hl-string">&#34;use&#34;</span>,
+	<span class="hl-string">&#34;mod&#34;</span>, <span class="hl-string">&#34;match&#34;</span>, <span class="hl-string">&#34;if&#34;</span>, <span class="hl-string">&#34;else&#34;</span>, <span class="hl-string">&#34;for&#34;</span>, <span class="hl-string">&#34;while&#34;</span>, <span class="hl-string">&#34;loop&#34;</span>, <span class="hl-string">&#34;return&#34;</span>, <span class="hl-string">&#34;break&#34;</span>,
+	<span class="hl-string">&#34;continue&#34;</span>, <span class="hl-string">&#34;self&#34;</span>, <span class="hl-string">&#34;Self&#34;</span>, <span class="hl-string">&#34;true&#34;</span>, <span class="hl-string">&#34;false&#34;</span>, <span class="hl-string">&#34;None&#34;</span>, <span class="hl-string">&#34;Some&#34;</span>, <span class="hl-string">&#34;Ok&#34;</span>, <span class="hl-string">&#34;Err&#34;</span>,
+	<span class="hl-string">&#34;async&#34;</span>, <span class="hl-string">&#34;await&#34;</span>, <span class="hl-string">&#34;unsafe&#34;</span>, <span class="hl-string">&#34;where&#34;</span>, <span class="hl-string">&#34;dyn&#34;</span>, <span class="hl-string">&#34;static&#34;</span>, <span class="hl-string">&#34;const&#34;</span>, <span class="hl-string">&#34;move&#34;</span>,
+}
+
+<span class="hl-keyword">var</span> jsKeywords = []string{
+	<span class="hl-string">&#34;function&#34;</span>, <span class="hl-string">&#34;const&#34;</span>, <span class="hl-string">&#34;let&#34;</span>, <span class="hl-string">&#34;var&#34;</span>, <span class="hl-string">&#34;return&#34;</span>, <span class="hl-string">&#34;if&#34;</span>, <span class="hl-string">&#34;else&#34;</span>, <span class="hl-string">&#34;for&#34;</span>,
+	<span class="hl-string">&#34;while&#34;</span>, <span class="hl-string">&#34;switch&#34;</span>, <span class="hl-string">&#34;case&#34;</span>, <span class="hl-string">&#34;break&#34;</span>, <span class="hl-string">&#34;continue&#34;</span>, <span class="hl-string">&#34;class&#34;</span>, <span class="hl-string">&#34;extends&#34;</span>,
+	<span class="hl-string">&#34;new&#34;</span>, <span class="hl-string">&#34;this&#34;</span>, <span class="hl-string">&#34;typeof&#34;</span>, <span class="hl-string">&#34;instanceof&#34;</span>, <span class="hl-string">&#34;true&#34;</span>, <span class="hl-string">&#34;false&#34;</span>, <span class="hl-string">&#34;null&#34;</span>,
+	<span class="hl-string">&#34;undefined&#34;</span>, <span class="hl-string">&#34;async&#34;</span>, <span class="hl-string">&#34;await&#34;</span>, <span class="hl-string">&#34;import&#34;</span>, <span class="hl-string">&#34;export&#34;</span>, <span class="hl-string">&#34;default&#34;</span>, <span class="hl-string">&#34;try&#34;</span>,
+	<span class="hl-string">&#34;catch&#34;</span>, <span class="hl-string">&#34;finally&#34;</span>, <span class="hl-string">&#34;interface&#34;</span>, <span class="hl-string">&#34;type&#34;</span>, <span class="hl-string">&#34;enum&#34;</span>, <span class="hl-string">&#34;implements&#34;</span>,
+}
+
+<span class="hl-keyword">var</span> jsonKeywords = []string{<span class="hl-string">&#34;true&#34;</span>, <span class="hl-string">&#34;false&#34;</span>, <span class="hl-string">&#34;null&#34;</span>}
+
+<span class="hl-comment">// buildLanguage compila o regexp combinado de uma linguagem. lineComment</span>
+<span class="hl-comment">// vazio omite o grupo de comentário (ex.: JSON não tem comentários).</span>
+<span class="hl-keyword">func</span> buildLanguage(label string, keywords []string, lineComment string) *languageSpec {
+	stringPattern := `<span class="hl-string">&#34;(?:[^&#34;</span>\\\n]|\\.)*&#34;|<span class="hl-string">&#39;(?:[^&#39;</span>\\\n]|\\.)*&#39;`
+	numberPattern := `\b\d+(?:\.\d+)?\b`
+	keywordPattern := `\b(?:` + strings.Join(keywords, <span class="hl-string">&#34;|&#34;</span>) + `)\b`
+
+	parts := []string{}
+	<span class="hl-keyword">if</span> lineComment != <span class="hl-string">&#34;&#34;</span> {
+		parts = append(parts, `(?P&lt;comment&gt;`+lineComment+`)`)
+	}
+	parts = append(parts,
+		`(?P&lt;string&gt;`+stringPattern+`)`,
+		`(?P&lt;number&gt;`+numberPattern+`)`,
+		`(?P&lt;keyword&gt;`+keywordPattern+`)`,
+	)
+
+	combined := strings.Join(parts, <span class="hl-string">&#34;|&#34;</span>)
+	<span class="hl-keyword">return</span> &amp;languageSpec{Label: label, regex: regexp.MustCompile(combined)}
+}
+
+<span class="hl-comment">// detectLanguage retorna a chave de linguagem (ver `languages`) a partir</span>
+<span class="hl-comment">// da extensão do arquivo, ou &#34;&#34; se não houver realce disponível para ela.</span>
+<span class="hl-keyword">func</span> detectLanguage(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	<span class="hl-keyword">return</span> extensionToLanguage[ext]
+}
+
+<span class="hl-comment">// highlight converte código-fonte em HTML com &lt;span&gt; de realce. Texto</span>
+<span class="hl-comment">// fora de qualquer token reconhecido é apenas escapado (nunca perdido).</span>
+<span class="hl-comment">// Para linguagens sem regras (fallback &#34;plaintext&#34;), apenas escapa.</span>
+<span class="hl-keyword">func</span> highlight(source string, langKey string) string {
+	spec, ok := languages[langKey]
+	<span class="hl-keyword">if</span> !ok {
+		<span class="hl-keyword">return</span> html.EscapeString(source)
+	}
+
+	<span class="hl-keyword">var</span> out strings.Builder
+	lastEnd := <span class="hl-number">0</span>
+
+	matches := spec.regex.FindAllStringSubmatchIndex(source, -<span class="hl-number">1</span>)
+	names := spec.regex.SubexpNames()
+
+	<span class="hl-keyword">for</span> _, m := <span class="hl-keyword">range</span> matches {
+		start, end := m[<span class="hl-number">0</span>], m[<span class="hl-number">1</span>]
+
+		<span class="hl-comment">// texto entre o fim do match anterior e o início deste</span>
+		out.WriteString(html.EscapeString(source[lastEnd:start]))
+
+		class := <span class="hl-string">&#34;hl-token&#34;</span>
+		<span class="hl-keyword">for</span> i := <span class="hl-number">1</span>; i &lt; len(names); i++ {
+			<span class="hl-keyword">if</span> names[i] == <span class="hl-string">&#34;&#34;</span> {
+				<span class="hl-keyword">continue</span>
+			}
+			groupStart, groupEnd := m[<span class="hl-number">2</span>*i], m[<span class="hl-number">2</span>*i+<span class="hl-number">1</span>]
+			<span class="hl-keyword">if</span> groupStart == -<span class="hl-number">1</span> {
+				<span class="hl-keyword">continue</span>
+			}
+			<span class="hl-keyword">if</span> groupStart == start &amp;&amp; groupEnd == end {
+				class = <span class="hl-string">&#34;hl-&#34;</span> + names[i]
+				<span class="hl-keyword">break</span>
+			}
+		}
+
+		out.WriteString(`&lt;span class=<span class="hl-string">&#34;` + class + `&#34;</span>&gt;`)
+		out.WriteString(html.EscapeString(source[start:end]))
+		out.WriteString(`&lt;/span&gt;`)
+
+		lastEnd = end
+	}
+
+	out.WriteString(html.EscapeString(source[lastEnd:]))
+	<span class="hl-keyword">return</span> out.String()
+}
+
+<span class="hl-comment">// languageLabel devolve um nome de exibição amigável para a linguagem</span>
+<span class="hl-comment">// detectada, ou &#34;Texto simples&#34; quando não há regras de realce.</span>
+<span class="hl-keyword">func</span> languageLabel(langKey string) string {
+	<span class="hl-keyword">if</span> spec, ok := languages[langKey]; ok {
+		<span class="hl-keyword">return</span> spec.Label
+	}
+	<span class="hl-keyword">return</span> <span class="hl-string">&#34;Texto simples&#34;</span>
+}
+</code></pre>
+</section>
+<section id="file-5">
+<h2>highlight_test.go <span class="lang-badge">Go</span></h2>
+<pre><code><span class="hl-keyword">package</span> cmd
+
+<span class="hl-keyword">import</span> <span class="hl-string">&#34;testing&#34;</span>
+
+<span class="hl-keyword">func</span> TestDetectLanguage(t *testing.T) {
+	cases := <span class="hl-keyword">map</span>[string]string{
+		<span class="hl-string">&#34;main.py&#34;</span>:       <span class="hl-string">&#34;python&#34;</span>,
+		<span class="hl-string">&#34;lib.rs&#34;</span>:        <span class="hl-string">&#34;rust&#34;</span>,
+		<span class="hl-string">&#34;cmd/root.go&#34;</span>:   <span class="hl-string">&#34;go&#34;</span>,
+		<span class="hl-string">&#34;index.js&#34;</span>:      <span class="hl-string">&#34;javascript&#34;</span>,
+		<span class="hl-string">&#34;app.tsx&#34;</span>:       <span class="hl-string">&#34;typescript&#34;</span>,
+		<span class="hl-string">&#34;data.json&#34;</span>:     <span class="hl-string">&#34;json&#34;</span>,
+		<span class="hl-string">&#34;README.md&#34;</span>:     <span class="hl-string">&#34;&#34;</span>,
+		<span class="hl-string">&#34;noextension&#34;</span>:   <span class="hl-string">&#34;&#34;</span>,
+	}
+
+	<span class="hl-keyword">for</span> filename, want := <span class="hl-keyword">range</span> cases {
+		got := detectLanguage(filename)
+		<span class="hl-keyword">if</span> got != want {
+			t.Errorf(<span class="hl-string">&#34;detectLanguage(%q) = %q, esperado %q&#34;</span>, filename, got, want)
+		}
+	}
+}
+
+<span class="hl-keyword">func</span> TestHighlight_PythonKeywordAndString(t *testing.T) {
+	source := `def hello():\n    <span class="hl-keyword">return</span> <span class="hl-string">&#34;oi&#34;</span>`
+
+	out := highlight(source, <span class="hl-string">&#34;python&#34;</span>)
+
+	<span class="hl-keyword">if</span> !contains(out, `&lt;span class=<span class="hl-string">&#34;hl-keyword&#34;</span>&gt;def&lt;/span&gt;`) {
+		t.Errorf(<span class="hl-string">&#34;esperava span de keyword &#39;def&#39;, obteve: %s&#34;</span>, out)
+	}
+	<span class="hl-keyword">if</span> !contains(out, `&lt;span class=<span class="hl-string">&#34;hl-keyword&#34;</span>&gt;<span class="hl-keyword">return</span>&lt;/span&gt;`) {
+		t.Errorf(<span class="hl-string">&#34;esperava span de keyword &#39;return&#39;, obteve: %s&#34;</span>, out)
+	}
+	<span class="hl-keyword">if</span> !contains(out, `&lt;span class=<span class="hl-string">&#34;hl-string&#34;</span>&gt;&amp;#<span class="hl-number">34</span>;oi&amp;#<span class="hl-number">34</span>;&lt;/span&gt;`) {
+		t.Errorf(<span class="hl-string">&#34;esperava span de string, obteve: %s&#34;</span>, out)
+	}
+}
+
+<span class="hl-keyword">func</span> TestHighlight_GoComment(t *testing.T) {
+	source := <span class="hl-string">&#34;// isto é um comentário\nfunc main() {}&#34;</span>
+
+	out := highlight(source, <span class="hl-string">&#34;go&#34;</span>)
+
+	<span class="hl-keyword">if</span> !contains(out, `hl-comment`) {
+		t.Errorf(<span class="hl-string">&#34;esperava span de comentário, obteve: %s&#34;</span>, out)
+	}
+	<span class="hl-keyword">if</span> !contains(out, `&lt;span class=<span class="hl-string">&#34;hl-keyword&#34;</span>&gt;<span class="hl-keyword">func</span>&lt;/span&gt;`) {
+		t.Errorf(<span class="hl-string">&#34;esperava span de keyword &#39;func&#39;, obteve: %s&#34;</span>, out)
+	}
+}
+
+<span class="hl-keyword">func</span> TestHighlight_NumberToken(t *testing.T) {
+	out := highlight(<span class="hl-string">&#34;let x = 42;&#34;</span>, <span class="hl-string">&#34;javascript&#34;</span>)
+
+	<span class="hl-keyword">if</span> !contains(out, `&lt;span class=<span class="hl-string">&#34;hl-number&#34;</span>&gt;<span class="hl-number">42</span>&lt;/span&gt;`) {
+		t.Errorf(<span class="hl-string">&#34;esperava span de número, obteve: %s&#34;</span>, out)
+	}
+}
+
+<span class="hl-keyword">func</span> TestHighlight_UnknownLanguageOnlyEscapes(t *testing.T) {
+	out := highlight(<span class="hl-string">&#34;&lt;script&gt;alert(1)&lt;/script&gt;&#34;</span>, <span class="hl-string">&#34;&#34;</span>)
+
+	<span class="hl-keyword">if</span> contains(out, <span class="hl-string">&#34;&lt;script&gt;&#34;</span>) {
+		t.Errorf(<span class="hl-string">&#34;HTML não deveria ter sido injetado sem escape: %s&#34;</span>, out)
+	}
+	<span class="hl-keyword">if</span> !contains(out, <span class="hl-string">&#34;&amp;lt;script&amp;gt;&#34;</span>) {
+		t.Errorf(<span class="hl-string">&#34;esperava escape de HTML, obteve: %s&#34;</span>, out)
+	}
+}
+
+<span class="hl-keyword">func</span> TestHighlight_NeverLosesCharacters(t *testing.T) {
+	source := `x = <span class="hl-string">&#34;a&#34;</span> + <span class="hl-string">&#39;b&#39;</span> + <span class="hl-number">3</span> # comentario final`
+
+	out := highlight(source, <span class="hl-string">&#34;python&#34;</span>)
+
+	<span class="hl-comment">// Todo caractere original deve estar presente em algum ponto do HTML</span>
+	<span class="hl-comment">// (escapado ou não) — nenhum span pode &#34;engolir&#34; texto.</span>
+	<span class="hl-keyword">for</span> _, want := <span class="hl-keyword">range</span> []string{<span class="hl-string">&#34;x&#34;</span>, <span class="hl-string">&#34;=&#34;</span>, <span class="hl-string">&#34;+&#34;</span>, <span class="hl-string">&#34;3&#34;</span>} {
+		<span class="hl-keyword">if</span> !contains(out, want) {
+			t.Errorf(<span class="hl-string">&#34;caractere/token %q ausente na saída: %s&#34;</span>, want, out)
+		}
+	}
+}
+
+<span class="hl-keyword">func</span> contains(haystack, needle string) bool {
+	<span class="hl-keyword">return</span> len(haystack) &gt;= len(needle) &amp;&amp; indexOf(haystack, needle) != -<span class="hl-number">1</span>
+}
+
+<span class="hl-keyword">func</span> indexOf(haystack, needle string) int {
+	<span class="hl-keyword">for</span> i := <span class="hl-number">0</span>; i+len(needle) &lt;= len(haystack); i++ {
+		<span class="hl-keyword">if</span> haystack[i:i+len(needle)] == needle {
+			<span class="hl-keyword">return</span> i
+		}
+	}
+	<span class="hl-keyword">return</span> -<span class="hl-number">1</span>
+}
+</code></pre>
+</section>
+<section id="file-6">
+<h2>root.go <span class="lang-badge">Go</span></h2>
+<pre><code><span class="hl-comment">// Package cmd implementa os subcomandos do openops-cli.</span>
+<span class="hl-comment">//</span>
+<span class="hl-comment">// O CLI é escrito em Go e compilado como binário único justamente para</span>
+<span class="hl-comment">// cumprir o item 13 do documento mestre do OpenOps (&#34;Preparação para</span>
+<span class="hl-comment">// forks&#34; -&gt; &#34;Instalação reproduzível do zero&#34;): qualquer pessoa baixa um</span>
+<span class="hl-comment">// único executável, sem precisar instalar runtime nenhum, e roda os</span>
+<span class="hl-comment">// comandos de diagnóstico e operação do OpenOps.</span>
+<span class="hl-keyword">package</span> cmd
+
+<span class="hl-keyword">import</span> (
+	<span class="hl-string">&#34;flag&#34;</span>
+	<span class="hl-string">&#34;fmt&#34;</span>
+	<span class="hl-string">&#34;os&#34;</span>
+)
+
+<span class="hl-comment">// Command descreve um subcomando executável do CLI.</span>
+<span class="hl-keyword">type</span> Command <span class="hl-keyword">struct</span> {
+	Name        string
+	Description string
+	Run         <span class="hl-keyword">func</span>(args []string) int
+}
+
+<span class="hl-keyword">var</span> registry = <span class="hl-keyword">map</span>[string]*Command{}
+
+<span class="hl-comment">// Register adiciona um comando ao registro global do CLI.</span>
+<span class="hl-keyword">func</span> Register(c *Command) {
+	registry[c.Name] = c
+}
+
+<span class="hl-comment">// Execute despacha para o subcomando indicado em os.Args[1] e retorna o</span>
+<span class="hl-comment">// exit code apropriado.</span>
+<span class="hl-keyword">func</span> Execute() int {
+	<span class="hl-keyword">if</span> len(os.Args) &lt; <span class="hl-number">2</span> {
+		printUsage()
+		<span class="hl-keyword">return</span> <span class="hl-number">1</span>
+	}
+
+	name := os.Args[<span class="hl-number">1</span>]
+	<span class="hl-keyword">if</span> name == <span class="hl-string">&#34;-h&#34;</span> || name == <span class="hl-string">&#34;--help&#34;</span> {
+		printUsage()
+		<span class="hl-keyword">return</span> <span class="hl-number">0</span>
+	}
+
+	cmd, ok := registry[name]
+	<span class="hl-keyword">if</span> !ok {
+		fmt.Fprintf(os.Stderr, <span class="hl-string">&#34;comando desconhecido: %q\n\n&#34;</span>, name)
+		printUsage()
+		<span class="hl-keyword">return</span> <span class="hl-number">1</span>
+	}
+
+	<span class="hl-keyword">return</span> cmd.Run(os.Args[<span class="hl-number">2</span>:])
+}
+
+<span class="hl-keyword">func</span> printUsage() {
+	fmt.Println(<span class="hl-string">&#34;openops-cli — ferramenta de linha de comando do OpenOps&#34;</span>)
+	fmt.Println()
+	fmt.Println(<span class="hl-string">&#34;Uso: openops-cli &lt;comando&gt; [flags]&#34;</span>)
+	fmt.Println()
+	fmt.Println(<span class="hl-string">&#34;Comandos disponíveis:&#34;</span>)
+	<span class="hl-keyword">for</span> name, c := <span class="hl-keyword">range</span> registry {
+		fmt.Printf(<span class="hl-string">&#34;  %-10s %s\n&#34;</span>, name, c.Description)
+	}
+}
+
+<span class="hl-comment">// newFlagSet é um helper para subcomandos que precisam de flags próprias.</span>
+<span class="hl-keyword">func</span> newFlagSet(name string) *flag.FlagSet {
+	<span class="hl-keyword">return</span> flag.NewFlagSet(name, flag.ExitOnError)
+}
+</code></pre>
+</section>
+<section id="file-7">
+<h2>version.go <span class="lang-badge">Go</span></h2>
+<pre><code><span class="hl-keyword">package</span> cmd
+
+<span class="hl-keyword">import</span> <span class="hl-string">&#34;fmt&#34;</span>
+
+<span class="hl-comment">// Version é preenchida via -ldflags no build de release; em builds locais</span>
+<span class="hl-comment">// mantém o valor &#34;dev&#34;.</span>
+<span class="hl-keyword">var</span> Version = <span class="hl-string">&#34;dev&#34;</span>
+
+<span class="hl-keyword">func</span> init() {
+	Register(&amp;Command{
+		Name:        <span class="hl-string">&#34;version&#34;</span>,
+		Description: <span class="hl-string">&#34;Mostra a versão do openops-cli&#34;</span>,
+		Run: <span class="hl-keyword">func</span>(args []string) int {
+			fmt.Printf(<span class="hl-string">&#34;openops-cli %s\n&#34;</span>, Version)
+			<span class="hl-keyword">return</span> <span class="hl-number">0</span>
+		},
+	})
+}
+</code></pre>
+</section>
+</main>
+</body>
+</html>

@@ -1,0 +1,55 @@
+Files openops/.github/workflows/block-contributor.yml and openops-cs50-final/.github/workflows/block-contributor.yml differ
+Files openops/.github/workflows/ci.yml and openops-cs50-final/.github/workflows/ci.yml differ
+Files openops/.github/workflows/pr-comment.yml and openops-cs50-final/.github/workflows/pr-comment.yml differ
+Files openops/.gitignore and openops-cs50-final/.gitignore differ
+Only in openops: .pytest_cache
+Files openops/MANUAL_DE_USO_API.md and openops-cs50-final/MANUAL_DE_USO_API.md differ
+Files openops/README.md and openops-cs50-final/README.md differ
+Files openops/THREAT_MODEL.md and openops-cs50-final/THREAT_MODEL.md differ
+Only in openops-cs50-final/docs: MANUAL_MICRO_SITE.md
+Only in openops-cs50-final/docs: PROJECT_OVERVIEW.md
+Only in openops-cs50-final/docs: SUBMISSAO_CS50.md
+Only in openops-cs50-final/docs: VIDEO_ROTEIRO.md
+Only in openops/go/openops-cli: openops-cli.exe
+Only in openops: openops.db
+Only in openops-cs50-final: openops.py
+Only in openops/python: .hypothesis
+Only in openops/python: .pytest_cache
+Only in openops/python: .pytest_tmp
+Only in openops/python: openops.db
+Only in openops/python/openops_api: __pycache__
+Files openops/python/openops_api/auth.py and openops-cs50-final/python/openops_api/auth.py differ
+Files openops/python/openops_api/main.py and openops-cs50-final/python/openops_api/main.py differ
+Only in openops/python/openops_api/tests: __pycache__
+Files openops/python/openops_api/tests/test_auth_api.py and openops-cs50-final/python/openops_api/tests/test_auth_api.py differ
+Only in openops/python/openops_business: __pycache__
+Files openops/python/openops_business/customers/__init__.py and openops-cs50-final/python/openops_business/customers/__init__.py differ
+Only in openops/python/openops_business/customers: __pycache__
+Files openops/python/openops_business/inventory/__init__.py and openops-cs50-final/python/openops_business/inventory/__init__.py differ
+Only in openops/python/openops_business/inventory: __pycache__
+Files openops/python/openops_business/inventory/models.py and openops-cs50-final/python/openops_business/inventory/models.py differ
+Files openops/python/openops_business/inventory/repository.py and openops-cs50-final/python/openops_business/inventory/repository.py differ
+Files openops/python/openops_business/inventory/router.py and openops-cs50-final/python/openops_business/inventory/router.py differ
+Files openops/python/openops_business/inventory/service.py and openops-cs50-final/python/openops_business/inventory/service.py differ
+Files openops/python/openops_business/products/__init__.py and openops-cs50-final/python/openops_business/products/__init__.py differ
+Only in openops/python/openops_business/products: __pycache__
+Files openops/python/openops_business/products/repository.py and openops-cs50-final/python/openops_business/products/repository.py differ
+Files openops/python/openops_business/products/service.py and openops-cs50-final/python/openops_business/products/service.py differ
+Only in openops/python/openops_business/tests: __pycache__
+Only in openops-cs50-final/python/openops_business/tests: test_products_remove.py
+Only in openops/python/openops_core: __pycache__
+Files openops/python/openops_core/auth.py and openops-cs50-final/python/openops_core/auth.py differ
+Files openops/python/openops_core/db.py and openops-cs50-final/python/openops_core/db.py differ
+Files openops/python/openops_core/logging.py and openops-cs50-final/python/openops_core/logging.py differ
+Only in openops-cs50-final/python/openops_core: roles.py
+Only in openops/python/openops_core/tests: __pycache__
+Only in openops-cs50-final/python/openops_core/tests: test_db_transactions.py
+Only in openops/python: openops_core.egg-info
+Only in openops-cs50-final/python: openops_web
+Files openops/python/pyproject.toml and openops-cs50-final/python/pyproject.toml differ
+Only in openops-cs50-final: requirements-api.txt
+Only in openops-cs50-final: requirements-dev.txt
+Only in openops-cs50-final: requirements.txt
+Only in openops/rust/openops-security: target
+Only in openops/rust/openops-security: tests
+Only in openops-cs50-final: test_project.py

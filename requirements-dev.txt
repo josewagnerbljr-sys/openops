@@ -1,0 +1,4 @@
+# Testes do micro-site, do core e da CLI
+pytest>=7.0
+# Testes de propriedade (python/*/tests/*properties*.py)
+hypothesis>=6.100

@@ -1,0 +1,21 @@
+[project]
+name = "openops-core"
+version = "0.1.0"
+description = "Núcleo Python do OpenOps: configuração, logging estruturado e event bus"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "José Wagner Blanco Júnior" }]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "pytest-cov>=4.0"]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["openops_core*"]
+
+[tool.pytest.ini_options]
+testpaths = ["openops_core/tests"]

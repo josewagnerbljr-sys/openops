@@ -1,3 +1,4 @@
+# AI assistance (CS50 final-project policy): this file was written or modified with the AI assistant Claude (Anthropic). See README.md, section 6.
 """
 openops_business.products.repository
 =====================================
@@ -34,6 +35,14 @@ PRODUCTS_MIGRATIONS = [
             updated_at TEXT NOT NULL
         );
         CREATE INDEX idx_products_category ON products (category);
+        """,
+    ),
+    Migration(
+        version=2,
+        name="add_archived_flag_to_products",
+        namespace="products",
+        sql="""
+        ALTER TABLE products ADD COLUMN archived INTEGER NOT NULL DEFAULT 0;
         """,
     ),
 ]
@@ -86,10 +95,10 @@ class ProductRepository:
     def list(self, *, category: str | None = None) -> list[Product]:
         if category is not None:
             rows = self._db.query(
-                "SELECT * FROM products WHERE category = ? ORDER BY name", (category,)
+                "SELECT * FROM products WHERE archived = 0 AND category = ? ORDER BY name", (category,)
             )
         else:
-            rows = self._db.query("SELECT * FROM products ORDER BY name")
+            rows = self._db.query("SELECT * FROM products WHERE archived = 0 ORDER BY name")
         return [_row_to_product(row) for row in rows]
 
     def update(self, product_id: int, updated: Product) -> Product:
@@ -121,5 +130,43 @@ class ProductRepository:
         return self.get(product_id)
 
     def delete(self, product_id: int) -> None:
+        """Apaga definitivamente um produto **sem histórico**. Se já existem
+        movimentações de estoque, a chave estrangeira impede (e deve
+        impedir) a exclusão — devolvemos um ``ConflictError`` claro em vez
+        de deixar o ``sqlite3.IntegrityError`` vazar como erro 500.
+        """
         self.get(product_id)  # levanta NotFoundError se não existir
-        self._db.execute("DELETE FROM products WHERE id = ?", (product_id,))
+        try:
+            self._db.execute("DELETE FROM products WHERE id = ?", (product_id,))
+        except sqlite3.IntegrityError as exc:
+            raise ConflictError(
+                "produto tem histórico de movimentações e não pode ser apagado; use 'remove' para arquivar",
+                details={"id": product_id},
+            ) from exc
+
+    def remove(self, product_id: int) -> str:
+        """Remove o produto do catálogo da forma mais segura possível.
+
+        - Sem histórico → exclusão real (``"deleted"``).
+        - Com histórico → **arquivamento** (``"archived"``): o produto some
+          das listagens, mas as movimentações antigas continuam íntegras e
+          auditáveis. O nome é liberado (sufixo ``[arquivado #id]``) para
+          que um produto novo possa reutilizá-lo.
+
+        Decisão de projeto: contabilidade/auditoria de estoque nunca deve
+        perder histórico só porque alguém "removeu" um item da tela.
+        """
+        product = self.get(product_id)
+        try:
+            self.delete(product_id)
+            return "deleted"
+        except ConflictError:
+            self._db.execute(
+                "UPDATE products SET archived = 1, stock = 0, name = ?, updated_at = ? WHERE id = ?",
+                (
+                    f"{product.name} [arquivado #{product_id}]",
+                    datetime.now(timezone.utc).isoformat(),
+                    product_id,
+                ),
+            )
+            return "archived"

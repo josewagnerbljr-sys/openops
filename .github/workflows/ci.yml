@@ -23,6 +23,26 @@ jobs:
       - name: Rodar testes
         run: python -m pytest -v
 
+  microsite:
+    name: Micro-site (só biblioteca padrão) — Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      # Apenas pytest: prova que o micro-site e a CLI rodam sem nenhuma dependência de terceiros.
+      - name: Instalar somente o pytest
+        run: pip install pytest
+      - name: Testes do micro-site, do core de banco e da remoção de produtos
+        working-directory: python
+        run: python -m pytest openops_web/tests openops_core/tests/test_db_transactions.py openops_business/tests/test_products_remove.py -q
+      - name: Testes da CLI (openops.py)
+        run: python -m pytest test_project.py -q
+
   go:
     name: Go — openops-cli
     runs-on: ubuntu-latest

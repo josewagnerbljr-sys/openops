@@ -1,3 +1,4 @@
+# AI assistance (CS50 final-project policy): this file was written or modified with the AI assistant Claude (Anthropic). See README.md, section 6.
 """
 openops_business.products.service
 ==================================
@@ -67,6 +68,13 @@ class ProductService:
 
     def delete_product(self, product_id: int) -> None:
         self._repository.delete(product_id)
+
+    def remove_product(self, product_id: int) -> str:
+        """Remove do catálogo: apaga se não há histórico, senão arquiva.
+        Devolve ``"deleted"`` ou ``"archived"`` (usado pelo micro-site
+        para explicar ao usuário o que realmente aconteceu).
+        """
+        return self._repository.remove(product_id)
 
 
 def register(registry=None) -> None:

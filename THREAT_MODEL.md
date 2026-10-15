@@ -79,12 +79,35 @@ A fronteira de confiança mais crítica do sistema hoje é a que separa **códig
 
 | Categoria | Ameaça concreta | Status |
 |---|---|---|
+| **E**levation of Privilege | Visitante anônimo se cadastrar como `admin` enviando `role` em `POST /auth/register` | ✅ Corrigido — o cadastro público só cria `viewer`; papéis acima exigem token de admin; teste de regressão em `test_auth_api.py` (bug real encontrado na revisão para o projeto CS50) |
 | **S**poofing / **E**levation of Privilege | Qualquer chamador conseguir criar/editar/apagar produtos, sem autenticação | ✅ Mitigado — autenticação JWT (Argon2id para senha) e RBAC (viewer/operator/admin) obrigatórios em toda rota de negócio; leitura exige login, escrita exige "operator"+ |
 | **T**ampering | Injeção SQL via parâmetros da API | ✅ Mitigado — todo acesso a banco em `openops_core/db.py` usa parâmetros posicionais (`?`) do `sqlite3`, nunca concatenação de string |
 | **I**nformation Disclosure | Stack trace ou detalhe interno vazando em resposta de erro | ✅ Mitigado — todo erro de domínio passa por `OpenOpsError.to_dict()`, que expõe só `error`/`message`/`details` estruturados, nunca traceback; erros não mapeados (bugs reais) ainda cairiam no handler padrão do FastAPI — não coberto por teste ainda |
 | **I**nformation Disclosure | Senha de usuário armazenada em texto claro ou hash fraco | ✅ Mitigado — Argon2id (via `argon2-cffi`), recomendado atualmente pela OWASP; nunca comparação em texto claro |
 | **D**enial of Service | Ausência de rate limiting | ⚠️ Risco aceito — nenhum rate limiting implementado ainda |
 | **R**epudiation | Chamadas à API sem rastro de quem fez o quê | ⚠️ Parcialmente mitigado — o token JWT identifica o usuário em cada requisição (logs de acesso já sabem "quem"), mas não há um log de auditoria estruturado por operação ainda (planejado para a Fase 7 — Maintenance) |
+
+### 4.3.1 Micro-site (`openops_web`)
+
+Interface HTML servida por `python openops.py serve`, só com a biblioteca padrão do Python. Superfície de ataque: um servidor HTTP local + um navegador.
+
+| Categoria | Ameaça concreta | Status |
+|---|---|---|
+| **S**poofing | Força bruta de senha no login | ✅ Mitigado — scrypt (N=2^14, memory-hard) torna cada tentativa cara; `LoginThrottle` bloqueia 5 falhas seguidas por (IP, usuário) por 5 min (HTTP 429) |
+| **S**poofing | Descobrir quais usuários existem pelo tempo/mensagem de resposta | ✅ Mitigado — mesma mensagem para "não existe" e "senha errada", e o hash é calculado nos dois casos (`burn_password_time`) |
+| **E**levation of Privilege | 1º visitante da internet virar admin pela tela de configuração | ✅ Mitigado — `/api/setup` só aceita requisições do próprio computador (loopback) ou o admin criado por `python openops.py init --admin` |
+| **E**levation of Privilege | Token antigo mantendo poder após rebaixar/apagar o usuário | ✅ Mitigado — o papel NÃO vai no token; é lido do banco a cada requisição |
+| **T**ampering | XSS: nome de produto com `<script>`/`<img onerror>` | ✅ Mitigado — a interface usa só `textContent` (nunca `innerHTML`) + CSP `script-src 'self'`; testado em navegador real |
+| **T**ampering | CSRF | ✅ Mitigado — sem cookies de sessão: o token vai no cabeçalho `Authorization`, que um site de terceiros não consegue anexar |
+| **T**ampering | DNS rebinding contra o servidor local | ✅ Mitigado — cabeçalho `Host` é validado quando o servidor escuta só em 127.0.0.1 (HTTP 421) |
+| **T**ampering | Path traversal nos arquivos estáticos (`/static/../..`) | ✅ Mitigado — caminho resolvido precisa estar dentro de `static/`; testado com `..`, `%2e%2e` e links |
+| **T**ampering | Injeção de fórmula no CSV exportado (`=HYPERLINK(...)`) | ✅ Mitigado — células iniciadas por `= + - @` recebem apóstrofo |
+| **T**ampering | Perda de atualização: duas saídas simultâneas vendendo estoque inexistente | ✅ Corrigido — `RLock` + transação atômica em `register_movement`; teste com 16 threads |
+| **I**nformation Disclosure | Stack trace em erro 500 | ✅ Mitigado — handler final devolve mensagem genérica e registra o detalhe só no log |
+| **I**nformation Disclosure | Arquivo da chave de assinatura legível por outros usuários | ✅ Mitigado — criado com permissão 0600 |
+| **D**enial of Service | Corpo de requisição gigante / conexão pendurada | ✅ Mitigado — limite de 64 KiB (HTTP 413) e timeout de 15 s por conexão |
+| **I**nformation Disclosure | Tráfego em texto claro numa rede compartilhada | ⚠️ Risco aceito — o padrão é escutar só em 127.0.0.1; ao usar `--host 0.0.0.0` coloque um proxy HTTPS na frente (a CLI avisa) |
+| **R**epudiation | Quem fez o quê | ✅ Parcialmente — `openops.log` (JSON Lines) registra login, falhas, criação/remoção de produtos, movimentações e gestão de usuários, com o nome do usuário |
 
 ### 4.4 CLI (`go/openops-cli`)
 

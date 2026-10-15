@@ -1,3 +1,4 @@
+# AI assistance (CS50 final-project policy): this file was written or modified with the AI assistant Claude (Anthropic). See README.md, section 6.
 """
 openops_core.auth
 ==================
@@ -27,11 +28,7 @@ from argon2.exceptions import VerifyMismatchError
 from .db import Database, Migration
 from .errors import AuthorizationError, ConflictError, NotFoundError, ValidationError
 
-#: Ordem de privilégio dos papéis — "viewer" só lê, "operator" também
-#: cria/edita/apaga, "admin" acumula tudo (hoje equivalente a operator;
-#: existe como teto para permissões administrativas futuras, como
-#: gerenciar outros usuários).
-ROLE_LEVELS: dict[str, int] = {"viewer": 1, "operator": 2, "admin": 3}
+from .roles import ROLE_LEVELS, role_satisfies  # noqa: F401  (reexportados)
 
 AUTH_MIGRATIONS = [
     Migration(
@@ -162,11 +159,3 @@ class AuthService:
             role=row["role"],
             created_at=datetime.fromisoformat(row["created_at"]),
         )
-
-
-def role_satisfies(user_role: str, minimum: str) -> bool:
-    """Função pura: `user_role` tem privilégio suficiente para `minimum`?
-    Separada do resto pra ser trivialmente testável (inclusive por
-    propriedade) sem precisar montar um AuthService inteiro.
-    """
-    return ROLE_LEVELS.get(user_role, 0) >= ROLE_LEVELS.get(minimum, 0)

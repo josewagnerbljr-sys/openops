@@ -1,3 +1,4 @@
+# AI assistance (CS50 final-project policy): this file was written or modified with the AI assistant Claude (Anthropic). See README.md, section 6.
 """
 openops_api.auth
 =================
@@ -86,7 +87,27 @@ def require_role(minimum: str):
 
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-def register(payload: RegisterRequest, request: Request) -> UserOut:
+def register(
+    payload: RegisterRequest,
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> UserOut:
+    """Cadastro de usuário.
+
+    Correção de segurança (escalonamento de privilégio): antes, qualquer
+    visitante anônimo podia enviar ``"role": "admin"`` e se tornar
+    administrador. Agora o cadastro público só cria ``viewer`` (o primeiro
+    usuário do sistema continua virando admin, ver ``AuthService.register``);
+    pedir qualquer papel acima de ``viewer`` exige um token de **admin**.
+    """
+    if payload.role != "viewer":
+        caller = get_current_user(request, credentials)
+        if ROLE_LEVELS.get(caller.role, 0) < ROLE_LEVELS["admin"]:
+            raise AuthorizationError(
+                "somente um admin pode criar usuários com papel acima de 'viewer'",
+                details={"seu_papel": caller.role, "papel_solicitado": payload.role},
+            )
+
     user = _auth_service(request).register(
         username=payload.username, password=payload.password, role=payload.role
     )

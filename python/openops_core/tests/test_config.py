@@ -1,3 +1,4 @@
+# AI assistance (CS50 final-project policy): this file was written or modified with the AI assistant Claude (Anthropic). See README.md, section 6.
 import json
 import os
 
@@ -15,7 +16,7 @@ def test_defaults_when_nothing_provided():
 
 def test_loads_from_file(tmp_path):
     config_file = tmp_path / "config.json"
-    config_file.write_text(json.dumps({"environment": "staging", "log_level": "DEBUG"}))
+    config_file.write_text(json.dumps({"environment": "staging", "log_level": "DEBUG"}), encoding="utf-8")
 
     config = load_config(config_file)
 
@@ -25,7 +26,7 @@ def test_loads_from_file(tmp_path):
 
 def test_env_vars_override_file(tmp_path, monkeypatch):
     config_file = tmp_path / "config.json"
-    config_file.write_text(json.dumps({"environment": "staging"}))
+    config_file.write_text(json.dumps({"environment": "staging"}), encoding="utf-8")
     monkeypatch.setenv("OPENOPS_ENVIRONMENT", "production")
 
     config = load_config(config_file)
@@ -43,7 +44,7 @@ def test_unknown_keys_go_to_extra(monkeypatch):
 
 def test_invalid_json_raises_config_error(tmp_path):
     config_file = tmp_path / "broken.json"
-    config_file.write_text("{ not valid json")
+    config_file.write_text("{ not valid json", encoding="utf-8")
 
     with pytest.raises(ConfigError):
         load_config(config_file)
@@ -53,3 +54,12 @@ def test_config_is_immutable():
     config = OpenOpsConfig()
     with pytest.raises(Exception):
         config.environment = "production"  # type: ignore[misc]
+
+
+def test_non_utf8_file_raises_config_error(tmp_path):
+    """Windows: arquivo salvo em ANSI/cp1252 não pode virar traceback."""
+    config_file = tmp_path / "ansi.json"
+    config_file.write_bytes('{"nome": "não"}'.encode("cp1252"))
+
+    with pytest.raises(ConfigError, match="UTF-8"):
+        load_config(config_file)

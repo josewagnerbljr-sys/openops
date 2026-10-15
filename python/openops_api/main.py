@@ -1,3 +1,4 @@
+# AI assistance (CS50 final-project policy): this file was written or modified with the AI assistant Claude (Anthropic). See README.md, section 6.
 """
 openops_api.main
 =================
@@ -37,15 +38,15 @@ from openops_api.security_demo import router as security_demo_router
 from openops_api.sbom import router as sbom_router
 
 from openops_business.products import ProductService
-from openops_business.products import router as products_router
+from openops_business.products.router import router as products_router
 from openops_business.products.service import register as register_products
 
 from openops_business.customers import CustomerService
-from openops_business.customers import router as customers_router
+from openops_business.customers.router import router as customers_router
 from openops_business.customers.service import register as register_customers
 
 from openops_business.inventory import InventoryService
-from openops_business.inventory import router as inventory_router
+from openops_business.inventory.router import router as inventory_router
 from openops_business.inventory.service import register as register_inventory
 
 

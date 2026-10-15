@@ -1,0 +1,9 @@
+# OpenOps — dependências de EXECUÇÃO do micro-site
+#
+# Nenhuma. O micro-site (python openops.py serve) usa somente a biblioteca
+# padrão do Python 3.10+ (http.server, sqlite3, hashlib.scrypt, argparse...).
+# É de propósito: quem baixa o projeto roda direto, sem `pip install`.
+#
+# Extras opcionais:
+#   pip install -r requirements-dev.txt   # testes (pytest)
+#   pip install -r requirements-api.txt   # API REST FastAPI (python/openops_api)

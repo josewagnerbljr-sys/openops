@@ -1,3 +1,4 @@
+# AI assistance (CS50 final-project policy): this file was written or modified with the AI assistant Claude (Anthropic). See README.md, section 6.
 """
 openops_business.inventory.service
 ===================================
@@ -15,6 +16,7 @@ módulos anteriores (Produtos, Clientes):
 
 from __future__ import annotations
 
+import threading
 from datetime import date, timedelta
 
 from openops_core.db import Database
@@ -57,6 +59,7 @@ class InventoryService:
         self._repository = StockMovementRepository(db)
         self._products = product_service
         self._events = event_bus if event_bus is not None else EventBus()
+        self._lock = threading.RLock()
 
     @property
     def events(self) -> EventBus:
@@ -75,21 +78,29 @@ class InventoryService:
         batch_number: str = "",
         expiry_date: date | None = None,
     ) -> StockMovement:
-        product = self._products.get_product(product_id)  # NotFoundError se não existir
+        # Ler o estoque, calcular o novo valor e gravar precisa ser UMA
+        # operação indivisível. Sem isso (bug real encontrado ao colocar o
+        # micro-site multi-thread no ar) duas saídas simultâneas liam o
+        # mesmo saldo e uma sobrescrevia a outra — "lost update", o que
+        # permitia vender estoque que não existe. O lock serializa os
+        # movimentos neste processo; a transação garante que o movimento
+        # e o novo saldo são gravados juntos ou não são gravados.
+        with self._lock, self._db.transaction():
+            product = self._products.get_product(product_id)  # NotFoundError se não existir
 
-        new_stock = apply_movement(product.stock, movement_type, quantity)
+            new_stock = apply_movement(product.stock, movement_type, quantity)
 
-        movement = StockMovement(
-            product_id=product_id,
-            movement_type=movement_type,
-            quantity=quantity,
-            reason=reason,
-            batch_number=batch_number,
-            expiry_date=expiry_date,
-        )
-        saved = self._repository.create(movement)
+            movement = StockMovement(
+                product_id=product_id,
+                movement_type=movement_type,
+                quantity=quantity,
+                reason=reason,
+                batch_number=batch_number,
+                expiry_date=expiry_date,
+            )
+            saved = self._repository.create(movement)
 
-        self._products.update_product(product_id, stock=new_stock)
+            self._products.update_product(product_id, stock=new_stock)
 
         self._events.publish(
             "stock.changed",
@@ -105,6 +116,17 @@ class InventoryService:
 
     def current_stock(self, product_id: int) -> int:
         return self._products.get_product(product_id).stock
+
+    def expiring_batches(
+        self, *, within_days: int = DEFAULT_EXPIRY_ALERT_DAYS, reference_date: date | None = None
+    ) -> list[StockMovement]:
+        """Consulta pura (sem eventos, sem efeitos colaterais) dos lotes com
+        validade dentro da janela — usada pelo painel do micro-site, que
+        consulta isto a cada atualização de tela e não deve disparar
+        ``stock.expiring_soon`` toda vez.
+        """
+        today = reference_date if reference_date is not None else date.today()
+        return self._repository.list_expiring_batches(on_or_before=today + timedelta(days=within_days))
 
     def check_expiring_batches(
         self, *, within_days: int = DEFAULT_EXPIRY_ALERT_DAYS, reference_date: date | None = None
@@ -123,9 +145,7 @@ class InventoryService:
         ascendente — FEFO), além de publicar os eventos correspondentes.
         """
         today = reference_date if reference_date is not None else date.today()
-        deadline = today + timedelta(days=within_days)
-
-        expiring = self._repository.list_expiring_batches(on_or_before=deadline)
+        expiring = self.expiring_batches(within_days=within_days, reference_date=today)
 
         for movement in expiring:
             self._events.publish(

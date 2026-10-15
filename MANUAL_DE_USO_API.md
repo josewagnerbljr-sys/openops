@@ -84,7 +84,9 @@ curl -X POST http://localhost:8000/auth/register \
   -d '{"username": "seu_usuario", "password": "sua_senha_forte"}'
 ```
 
-> O **primeiro** usuário registrado no sistema vira `admin` automaticamente. Os próximos entram como `viewer` por padrão (só leitura) — quem for criar/editar/apagar precisa de `role: "operator"` no cadastro.
+> O **primeiro** usuário registrado no sistema vira `admin` automaticamente. O cadastro público cria **sempre** `viewer` (só leitura). Para criar um `operator` ou `admin`, envie o cadastro com o token de um **admin** no cabeçalho `Authorization` — pedir `role` acima de `viewer` sem ser admin retorna 403. (Antes, qualquer visitante podia se cadastrar como admin; esse escalonamento de privilégio foi corrigido.)
+>
+> Quer operar o estoque sem usar a API? Use o micro-site: `python openops.py serve --open` (veja `docs/MANUAL_MICRO_SITE.md`).
 
 ### 2. Fazer login e pegar o token
 

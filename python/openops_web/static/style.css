@@ -1,0 +1,153 @@
+/* AI assistance (CS50 final-project policy): written with Claude (Anthropic). See README.md, section 6. */
+:root {
+  --bg: #eef1ef;
+  --surface: #ffffff;
+  --ink: #12231f;
+  --ink-soft: #55655f;
+  --line: #d5ddd9;
+  --pine: #1f5c4d;
+  --pine-ink: #ffffff;
+  --pine-soft: #dcebe5;
+  --amber: #a55f00;
+  --amber-soft: #fbecd2;
+  --red: #b3261e;
+  --red-soft: #fbe3e0;
+  --gauge-track: #e3e9e6;
+  --focus: #1a73e8;
+  --font: "Segoe UI Variable Text", "Segoe UI", "Helvetica Neue", system-ui, -apple-system, Roboto, Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1a17; --surface: #16251f; --ink: #e6efeb; --ink-soft: #9fb2aa; --line: #2a3d36;
+    --pine: #5fbf9f; --pine-ink: #0b1a15; --pine-soft: #1c3a30;
+    --amber: #f0b45a; --amber-soft: #3a2c10; --red: #ff8f86; --red-soft: #3d1b18;
+    --gauge-track: #243730; --focus: #8ab4f8;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 var(--font); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.noscript { padding: 2rem; }
+
+/* ---------- barra superior ---------- */
+.top { background: var(--surface); border-bottom: 1px solid var(--line); }
+.top-inner { max-width: 1120px; margin: 0 auto; padding: .6rem 1rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: .5rem; font-weight: 700; font-size: 1.15rem; letter-spacing: -.01em; margin-right: .5rem; }
+.brand img { width: 26px; height: 26px; }
+.nav { display: flex; gap: .25rem; flex-wrap: wrap; flex: 1; }
+.nav button { background: none; border: 0; padding: .55rem .8rem; border-radius: 6px; cursor: pointer; color: var(--ink-soft); font-weight: 600; border-bottom: 3px solid transparent; border-radius: 6px 6px 0 0; }
+.nav button:hover { color: var(--ink); }
+.nav button[aria-current="page"] { color: var(--pine); border-bottom-color: var(--pine); }
+.who { display: flex; align-items: center; gap: .4rem; color: var(--ink-soft); font-size: .9rem; flex-wrap: wrap; }
+.who strong { color: var(--ink); }
+
+main { max-width: 1120px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+h1 { font-size: 1.6rem; line-height: 1.2; margin: 0 0 .25rem; letter-spacing: -.02em; }
+h2 { font-size: 1.05rem; margin: 0 0 .6rem; }
+.lead { margin: 0 0 1.25rem; color: var(--ink-soft); max-width: 62ch; }
+
+/* ---------- botões ---------- */
+.btn { border: 1px solid var(--line); background: var(--surface); padding: .5rem .9rem; border-radius: 6px; cursor: pointer; font-weight: 600; min-height: 40px; }
+.btn:hover { border-color: var(--ink-soft); }
+.btn.primary { background: var(--pine); color: var(--pine-ink); border-color: var(--pine); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.danger { color: var(--red); }
+.btn.small { padding: .25rem .6rem; min-height: 34px; font-size: .9rem; }
+.btn.link { border: 0; background: none; color: var(--pine); padding: .25rem .4rem; min-height: 0; text-decoration: underline; }
+.btn[disabled] { opacity: .55; cursor: not-allowed; }
+
+/* ---------- formulários ---------- */
+.field { display: flex; flex-direction: column; gap: .25rem; margin-bottom: .9rem; }
+.field label { font-weight: 600; font-size: .92rem; }
+.field .hint { color: var(--ink-soft); font-size: .85rem; }
+.field .err { color: var(--red); font-size: .88rem; font-weight: 600; }
+input, select { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: .5rem .65rem; min-height: 40px; width: 100%; }
+input[aria-invalid="true"] { border-color: var(--red); }
+.form-error { background: var(--red-soft); color: var(--red); padding: .6rem .8rem; border-radius: 6px; margin-bottom: .9rem; font-weight: 600; }
+
+/* ---------- tela de acesso ---------- */
+.auth { min-height: 100vh; display: grid; place-items: center; padding: 1rem; }
+.auth-box { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 1.75rem; }
+.auth-box h1 { margin-top: .75rem; }
+.auth-box .btn { width: 100%; margin-top: .25rem; }
+
+/* ---------- painel: faixa de números (não são cards) ---------- */
+.ledger { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 1.75rem; }
+.ledger > div { padding: 1rem 1.1rem; border-right: 1px solid var(--line); }
+.ledger > div:last-child { border-right: 0; }
+.ledger .n { display: block; font-size: 1.75rem; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.ledger .l { color: var(--ink-soft); font-size: .9rem; }
+.ledger .warn .n { color: var(--amber); }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-bottom: 1.75rem; }
+.plain-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.plain-list li { display: flex; justify-content: space-between; align-items: center; gap: .75rem; padding: .6rem 0; border-bottom: 1px solid var(--line); }
+.plain-list .sub { color: var(--ink-soft); font-size: .88rem; }
+.empty { color: var(--ink-soft); padding: 1rem 0; }
+
+/* ---------- barra de ferramentas e tabelas ---------- */
+.toolbar { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
+.toolbar .grow { flex: 1; min-width: 180px; }
+.toolbar input, .toolbar select { width: auto; }
+.toolbar input[type="search"] { width: 100%; }
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; }
+th, td { text-align: left; padding: .65rem .8rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-size: .85rem; color: var(--ink-soft); font-weight: 600; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.muted { color: var(--ink-soft); }
+.tag { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: .8rem; font-weight: 600; background: var(--pine-soft); color: var(--pine); }
+.tag.low { background: var(--amber-soft); color: var(--amber); }
+.tag.out { background: var(--red-soft); color: var(--red); }
+
+/* ---------- a linha de produto: medidor de nível + entrada/saída direta ---------- */
+.level { display: flex; align-items: center; gap: .6rem; min-width: 170px; }
+.level b { min-width: 3.2ch; text-align: right; font-variant-numeric: tabular-nums; font-size: 1.05rem; }
+.gauge { flex: 1; height: 8px; border-radius: 4px; background: var(--gauge-track); overflow: hidden; }
+.gauge span { display: block; height: 100%; width: var(--w, 0%); background: var(--pine); border-radius: 4px; transition: width .35s ease; }
+.gauge.low span { background: var(--amber); }
+.gauge.out span { background: var(--red); }
+.quick { display: flex; gap: .35rem; align-items: center; }
+.quick input { width: 4.2rem; text-align: center; min-height: 34px; padding: .25rem; }
+.quick .in { background: var(--pine-soft); color: var(--pine); border-color: transparent; }
+.quick .out { background: var(--amber-soft); color: var(--amber); border-color: transparent; }
+@media (prefers-reduced-motion: reduce) { .gauge span { transition: none; } }
+
+/* ---------- diálogos e avisos ---------- */
+dialog { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); padding: 1.4rem; width: min(92vw, 460px); }
+dialog::backdrop { background: rgba(10, 20, 17, .55); }
+dialog h2 { font-size: 1.2rem; margin-bottom: 1rem; }
+.dlg-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; flex-wrap: wrap; }
+.menu-list { display: grid; gap: .5rem; }
+.menu-list .btn { text-align: left; }
+#toasts { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); display: grid; gap: .5rem; z-index: 50; width: min(92vw, 520px); }
+.toast { background: var(--ink); color: var(--bg); padding: .7rem 1rem; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 18px rgba(0,0,0,.25); }
+.toast.error { background: var(--red); color: #fff; }
+
+@media (max-width: 640px) {
+  .top-inner { gap: .4rem; }
+  .who { width: 100%; }
+  .ledger > div { border-right: 0; border-bottom: 1px solid var(--line); }
+  .ledger > div:last-child { border-bottom: 0; }
+}
+
+/* ---------- celular: a linha de produto vira um bloco empilhado, com as ações à vista ---------- */
+@media (max-width: 700px) {
+  .top-inner { gap: .25rem .75rem; }
+  .nav { order: 3; flex-basis: 100%; overflow-x: auto; flex-wrap: nowrap; }
+  .nav button { white-space: nowrap; }
+  .stack { background: none; border: 0; overflow: visible; }
+  .stack table { min-width: 0; display: block; }
+  .stack thead { display: none; }
+  .stack tbody { display: grid; gap: .75rem; }
+  .stack tr { display: grid; grid-template-columns: 1fr auto; gap: .4rem .75rem; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: .8rem; }
+  .stack td { border: 0; padding: 0; }
+  .stack .c-name { grid-column: 1; }
+  .stack .c-price { grid-column: 2; grid-row: 1; }
+  .stack .c-cat { grid-column: 1 / -1; font-size: .9rem; }
+  .stack .c-level { grid-column: 1 / -1; }
+  .stack .c-quick { grid-column: 1; }
+  .stack .c-more { grid-column: 2; text-align: right; }
+}

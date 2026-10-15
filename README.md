@@ -1,179 +1,74 @@
-<div align="center">
+# OpenOps: A Stock-Control Micro-Site Anyone Can Operate
 
-# OpenOps
+#### Video Demo: <PASTE YOUR YOUTUBE URL HERE>
 
-**Open Source Business Operations Platform**
+#### Description:
 
-Gestão empresarial, processos (OpenSOP), execução operacional, segurança, manutenção e saúde estrutural — em uma base modular, aberta e fork-friendly.
+## 1. What OpenOps is and the problem it solves
 
-[![CI](https://github.com/josewagnerbljr-sys/openops/actions/workflows/ci.yml/badge.svg)](https://github.com/josewagnerbljr-sys/openops/actions/workflows/ci.yml)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](python/)
-[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white)](go/openops-cli/)
-[![Rust](https://img.shields.io/badge/Rust-2021-000000?logo=rust&logoColor=white)](rust/openops-security/)
+Small businesses run on stock: how many units are on the shelf, what just came in, what was sold, what is about to expire. In practice that knowledge lives in spreadsheets, paper notebooks or someone's memory, and the "proper" software that could replace them is either expensive or built for developers. The first version of this project, an open-source business-operations platform, had exactly that flaw: it exposed a REST API. To add ten units of a product you had to obtain a JWT token, craft a JSON body and send an HTTP request. That is fine for a programmer and impossible for the person who actually receives the delivery.
 
-</div>
+For this final project I kept the engine and replaced the way people use it. OpenOps now ships a **micro-site**: you run one command, `python openops.py serve --open`, and a browser page opens where you can sign in, register products, record stock in and out with one click on the product row, correct a physical count, remove products, manage customers and users, see what is running low or close to expiry, and download CSV reports. No terminal knowledge is needed after the first command, no `pip install` is required (the micro-site uses only Python's standard library), and nothing leaves the computer unless the owner decides to expose it.
 
----
+The goal was not just "a web page over a database". It is treated as an operations system, so correctness under real conditions mattered more than features: two cashiers selling the last item at the same time must not sell it twice, a removed product must not erase its audit trail, a stranger on the network must not become administrator, and a hostile product name must not execute code in somebody's browser. Most of the design decisions below exist to make those four sentences true, and each one is covered by an automated test.
 
-## O que é o OpenOps
-
-O OpenOps funde três ideias — **OpenBusiness OS**, **OpenSOP** e **OpenOps** — em uma base operacional reutilizável para pequenas e médias organizações: cadastros, estoque, compras, vendas, procedimentos operacionais padrão (POPs), workflows, indicadores, segurança e engenharia de software integrada.
-
-O projeto tem também finalidade **educacional**: pessoas de diferentes níveis de programação podem estudar o código, resolver issues, escrever testes, documentar e evoluir progressivamente — veja a tabela de governança em [CONTRIBUTING.md](CONTRIBUTING.md).
-
-> "Build it. Understand it. Improve it. Share it."
-
-## Por que três linguagens
-
-Este é um monorepo intencionalmente poliglota — cada camada usa a linguagem mais adequada ao seu problema, não a mesma linguagem por padrão:
-
-| Linguagem | Onde | Por quê |
-|---|---|---|
-| 🐍 **Python** | `python/openops_core`, `python/openops_business`, `python/openops_api` | Core, Business OS, API e plugins — produtividade e ecossistema |
-| 🐹 **Go** | `go/openops-cli` | CLI e Structural Health Engine — binário único, sem dependências, instalação reproduzível |
-| 🦀 **Rust** | `rust/openops-security` | Camada Security — segurança de memória garantida em compilação, ideal para criptografia |
-
-Detalhes completos em [ARCHITECTURE.md](ARCHITECTURE.md).
-
-## Bônus: gerador de documentação com realce de sintaxe
-
-O `openops-cli` também inclui o comando `docgen`: aponte para qualquer diretório de código (não precisa ser o próprio OpenOps) e ele gera um relatório HTML autocontido — sem CDN, sem internet — com detecção automática de linguagem (Python, Go, Rust, JavaScript/TypeScript, JSON) e realce de sintaxe real, útil para demonstrações, portfólio e documentação rápida.
-
-```bash
-openops-cli docgen --path ./meu-projeto --out relatorio.html --title "Meu Projeto"
-```
-
-Veja um exemplo gerado a partir do próprio código do CLI em [`docs/examples/demo-report.html`](docs/examples/demo-report.html).
-
-## Status do projeto
-
-🚀 **Nível produção** — Fundação, Core técnico e três módulos de Business OS (Produtos, Clientes, Estoque) completos, agora com **autenticação JWT + RBAC real**, **observabilidade** (OpenTelemetry + métricas Prometheus), **containerização Docker** e **SBOM** assinado em cada release. 183 testes Python + 10 Rust + Go, todos passando em CI. Veja o [ROADMAP.md](ROADMAP.md) completo para as próximas fases.
-
-## Quick start
+## 2. How to run it
 
 ```bash
 git clone https://github.com/josewagnerbljr-sys/openops.git
 cd openops
+python openops.py init --admin your_username --demo   # creates database, admin and example data
+python openops.py serve --open                        # opens http://localhost:8000
 ```
 
-**Python — core (config, logging, events, errors, registry, db) + Business OS + API**
-```bash
-cd python
-pip install -e ".[dev]"
-python -m pytest -v
+Requirements: Python 3.10 or newer. `python openops.py --help` lists every command. To run the tests: `pip install -r requirements-dev.txt`, then `python -m pytest test_project.py` from the root and `python -m pytest` from `python/`.
 
-# Subir a API REST de verdade
-python -m uvicorn openops_api.main:app --reload
-# depois acesse http://127.0.0.1:8000/docs para a documentação interativa
-```
+## 3. Project structure: what every file does
 
-**Go — CLI e Structural Health Engine**
-```bash
-cd go/openops-cli
-go build -o openops-cli .
-./openops-cli health --path ../..
-./openops-cli docgen --path ../.. --out relatorio.html --title "Meu Projeto"
-./openops-cli secscan --path ../..
-```
+**`openops.py`** is the entry point (a CLI router). It does no business work: it parses arguments with `argparse`, merges configuration from flag, environment variable, `openops.config.json` and defaults (in that priority order), validates it (a port such as `abc` produces a friendly message, never a traceback), configures logging and calls the right module. Commands are `init` (database, config file, first administrator, optional demo data), `serve` (starts the micro-site), `expiry` (lists batches close to their expiry date, with `--json` and `--fail-on-found` so a scheduler such as cron can use it), `export` (CSV) and `version`. Heavy imports happen inside each command, so `--help` is instant and never fails because of a business module.
 
-**Rust — camada Security (AES-256-GCM)**
-```bash
-cd rust/openops-security
-cargo test
-```
+**`test_project.py`** tests that entry point in an isolated temporary folder: invalid ports, broken config files, idempotent `init`, weak passwords, exit codes of `expiry`, CSV header, and the `--db` override.
 
-## Estrutura do repositório
+**`python/openops_core/`** is the technical foundation, free of third-party dependencies. `db.py` wraps SQLite with versioned, namespaced migrations; in this project a re-entrant lock around every statement and a `transaction()` context manager were added (see section 5). `errors.py` defines the exception hierarchy and its HTTP mapping. `config.py` loads layered configuration. `logging.py` writes structured JSON Lines, and now also to a file (`openops.log`), which is the audit trail. `registry.py` registers modules, `events.py` is an in-process event bus, and `roles.py` holds the viewer/operator/admin privilege levels shared by every interface.
 
-```
-openops/
-├── python/openops_core/     # Core: config, logging, events, errors, registry, db
-├── python/openops_business/ # Módulos de negócio (Produtos, e os que vierem depois)
-├── python/openops_api/      # API REST (FastAPI)
-├── go/openops-cli/          # CLI, Structural Health Engine, docgen, secscan
-├── rust/openops-security/   # Criptografia autenticada (AEAD)
-├── docs/
-├── .github/workflows/       # CI + validação automática de PR
-├── ARCHITECTURE.md
-├── ROADMAP.md
-├── CONTRIBUTING.md
-├── SECURITY.md
-└── CODE_OF_CONDUCT.md
-```
+**`python/openops_business/`** holds the business domain, one package per module (`products`, `inventory`, `customers`), each with `models.py` (immutable dataclasses that validate themselves), `repository.py` (the only place with SQL), and `service.py` (the facade the rest of the system uses). Inventory depends on products and publishes `stock.changed`, `stock.low` and `stock.expiring_soon` events. This is also where the new product-removal rule lives.
 
-## Releases assinadas
+**`python/openops_web/`** is the micro-site. `app.py` is the heart: a `WebApp.handle(method, path, headers, body)` function that returns a response without opening any socket, so routing, permissions and validation are testable in milliseconds. `server.py` is a thin `http.server` adapter that only translates the protocol. `security.py` implements scrypt password hashing, HMAC-signed session tokens and a login throttle. `users.py` stores users and enforces rules such as "the system can never lose its last administrator". `demo.py` seeds example data without touching a database that already has products. `static/index.html`, `static/style.css` and `static/app.js` form the interface: plain HTML, CSS and JavaScript, no framework and no CDN.
 
-Toda tag `v*` publicada dispara build cross-plataforma (Linux/macOS/Windows, amd64/arm64) e assinatura keyless via [Sigstore/cosign](https://www.sigstore.dev/) — sem chave privada pra gerenciar, com verificação pública no [Rekor](https://rekor.sigstore.dev/). Veja as instruções de verificação nas notas de cada [release](https://github.com/josewagnerbljr-sys/openops/releases).
+**`python/openops_api/`** is the earlier FastAPI REST API. It was kept for integrations that do want an API, and a privilege-escalation bug in it was fixed (section 5), and made it optional. **`go/`** and **`rust/`** contain the earlier command-line health scanner and the AES-256-GCM crypto library of the original monorepo; the micro-site does not need them. **`docs/`** contains the user manual in Portuguese, the submission guide and the video script; `THREAT_MODEL.md` was extended with the micro-site's threats.
 
-## Playground público (sem login)
+## 4. Design choices
 
-Antes mesmo de criar conta, dá pra testar a API:
+**Python's standard library instead of Flask or FastAPI.** A web framework would have been quicker to write, but it would also have required `pip install`, a virtual environment and a working network, which defeats the goal of "anyone can run it". `http.server`, `sqlite3`, `hashlib.scrypt` and `hmac` are enough. The cost is that routing and validation are handled by hand; it is contained by keeping all logic in `app.py`, a pure request-to-response function, and leaving the server as a thin adapter. Because of that separation the 100+ web tests run in a few seconds, and a handful more exercise a real socket.
 
-```bash
-# Cifrar um texto com AES-256-GCM real
-curl -X POST http://localhost:8000/security-demo/encrypt \
-  -H "Content-Type: application/json" -d '{"plaintext": "teste"}'
+**A single page with no framework.** The interface is vanilla JavaScript. The most important screen is the product table: every row has a level gauge and a quantity box with "Add" and "Remove" buttons, because the commonest operation (receive or sell N units) should take one click, not a dialog. Rarer operations (batch and expiry date, inventory correction, edit, remove) live behind "More". On phones the row becomes a stacked block so the action buttons stay visible. The interface is in Portuguese and English.
 
-# Ver a adulteração sendo detectada, num passo só
-curl -X POST http://localhost:8000/security-demo/tamper-demo \
-  -H "Content-Type: application/json" -d '{"plaintext": "dado importante"}'
+**Stock changes only through movements.** A product's stock is never edited directly; it changes only by an "in", "out" or "adjustment" movement. Creating a product with initial stock records an "Initial stock" movement in the same transaction. The history therefore always explains the number on the screen.
 
-# Inventário de dependências (SBOM), gerado no build da imagem Docker
-curl http://localhost:8000/sbom
-```
+**Removing a product archives it when it has history.** SQLite's foreign key correctly refuses to delete a product that has movements, which originally surfaced as an unhandled server error. A literal delete would destroy the audit trail, so `remove()` deletes products with no history and archives the others (hidden from lists, name released for reuse, movements kept). The interface tells the user which of the two happened.
 
-Guia completo de todas as rotas (com autenticação, Produtos, Clientes, Estoque): [MANUAL_DE_USO_API.md](MANUAL_DE_USO_API.md).
+**Security by default.** Passwords use scrypt with per-user salt; login errors are identical for unknown user and wrong password, and the hash is computed in both cases to avoid a timing leak. Tokens carry only the username and expiry, while the role is read from the database on every request, so demoting or deleting a user takes effect immediately. The first-run setup page only works from the same computer. The server listens on 127.0.0.1 only and validates the `Host` header (DNS rebinding). A Content-Security-Policy forbids inline scripts, the interface uses `textContent` instead of `innerHTML`, CSV exports neutralise spreadsheet formulas, and bodies are capped at 64 KiB.
 
-## Executando com Docker
+## 5. Challenges and trade-offs
 
-```bash
-OPENOPS_JWT_SECRET=$(openssl rand -hex 32) docker compose up --build
-# depois: http://localhost:8000/docs
-```
+These problems were found and fixed during development together with the AI assistant (see section 6); the descriptions are how they were diagnosed and solved.
 
-## Segurança de nível produção
+**Concurrency bugs that only appear with real traffic.** A single-threaded test suite passed while the threaded server was wrong. `ThreadingHTTPServer` serves each request in its own thread but all of them share one SQLite connection, and two bugs appeared. First, `Database.query` temporarily sets the connection's `row_factory`; one thread could reset it while another was mid-query, so the second received tuples and crashed with a `TypeError` on `row["id"]`. Second, selling stock was a read-modify-write: two simultaneous sales read the same balance and one overwrote the other, allowing the system to sell items it did not have. The first was fixed with a re-entrant lock around every statement and the second with a lock plus an atomic `transaction()` that stores the movement and the new balance together or not at all. A regression test fires 120 concurrent sales at 50 units of stock and asserts that exactly 50 succeed and the final stock is zero. The trade-off is that writes are serialised inside one process; that is perfectly adequate for a small business and far simpler than a client-server database.
 
-- **Autenticação + RBAC**: toda rota de negócio exige JWT; leitura pede login, escrita pede papel `operator` ou superior. Senhas com Argon2id (recomendação atual da OWASP).
-- **Observabilidade**: cada requisição HTTP gera um trace (OpenTelemetry) e métricas Prometheus reais em `/metrics`.
-- **SBOM assinado**: cada release inclui um inventário formal de dependências (CycloneDX) para as três linguagens.
+**A privilege-escalation bug in the old API.** `POST /auth/register` accepted a `role` field from anyone, so a visitor could register as `admin`. The fix keeps public registration at `viewer` and requires an administrator's token for anything higher, with regression tests. Those FastAPI tests could not be run in the AI assistant's sandbox (package installation was blocked), so they are verified by the project's continuous-integration workflow rather than there; this is stated openly instead of claiming otherwise.
 
-## Documentação
+**Making the business package importable without FastAPI.** The package `__init__` files imported their FastAPI routers, so even the pure domain logic required FastAPI to be installed. The router imports were moved to the API module, which is what allows the micro-site to have zero dependencies, and added a CI job that installs only `pytest` on Python 3.10 and 3.12 to keep that promise honest. Another trade-off is relative versus absolute paths: the database and log are created in the current directory by default, which is visible and simple, and `--db` or the config file override it.
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) — visão, princípios, camadas e módulos planejados
-- [ROADMAP.md](ROADMAP.md) — cronograma completo das 15 fases e marcos de maturidade
-- [CONTRIBUTING.md](CONTRIBUTING.md) — como contribuir, por nível de experiência
-- [SECURITY.md](SECURITY.md) — como reportar vulnerabilidades
-- [THREAT_MODEL.md](THREAT_MODEL.md) — análise formal de ameaças (STRIDE)
-- [MANUAL_DE_USO_API.md](MANUAL_DE_USO_API.md) — guia passo a passo de todas as rotas da API
-- [MUTATION_TESTING.md](python/MUTATION_TESTING.md) — resultado real de mutation testing sobre o código
-- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+## 6. Authorship, ownership and use of AI assistance
 
-## Licença
+**Owner and author.** OpenOps is created, owned and maintained by **José Wagner Blanco Júnior** (GitHub: [josewagnerbljr-sys](https://github.com/josewagnerbljr-sys)), the sole author and the only person responsible for this submission. Copyright 2024-2026 José Wagner Blanco Júnior. The software is released under the **Apache License 2.0** (`LICENSE`, with the copyright notice in `NOTICE`), which keeps ownership with the author while letting others use, study and modify it.
 
-[Apache License 2.0](LICENSE) — © 2026 José Wagner Blanco Júnior.
+**What is the author's work.** The earlier OpenOps code (core, business modules, FastAPI API, Go command-line tool and Rust crypto library) was already in this repository before the final-project work began. For this submission the author defined the problem and the requirements (replace the API with a micro-site that anyone can operate without programming knowledge, keep the existing engine, optimise the system as a whole, and meet the CS50 submission rules) and chose the direction.
 
-## Fale comigo
+**What AI did.** CS50's rule for the final project is that AI-based software may be used, that "the essence of the work must still be your own", that AI should amplify and not supplant the student's work, and that its use must be cited in code comments. The use of AI here was **extensive**: Anthropic's Claude (through Claude Code) wrote most of the new implementation of this submission, namely the `openops_web` package, the `openops.py` command line, the fixes to the core and the API, the automated tests, and the first drafts of the documentation, working from the requirements above. It also found and fixed the bugs described in section 5. Every file written or modified that way begins with a comment saying so.
 
-<div align="center">
+**The author's own contributions in this submission.** [TO BE COMPLETED BY THE AUTHOR BEFORE SUBMITTING, IN HIS OWN WORDS AND ONLY WITH WHAT HE ACTUALLY DID: for example, the features he designed and implemented himself, the parts he rewrote, the decisions he took and why, and what he tested by hand. Delete this bracket afterwards.]
 
-### 💬 Tem um problema de sistema, integração ou automação pra resolver?
+## 7. Testing
 
-[![WhatsApp — Catálogo](https://img.shields.io/badge/WhatsApp-Cat%C3%A1logo%20%26%20Suporte-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)](https://wa.me/c/554491585033)
-
-Catálogo com softwares em promoção, auxílio na resolução de problemas, automações e muito mais — direto pelo WhatsApp.
-
-[![WhatsApp — Canal](https://img.shields.io/badge/WhatsApp-Canal%20de%20Novidades-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)](https://whatsapp.com/channel/0029VbCg8mMHQbS8zrKhyE0W)
-
-Novidades tecnológicas, sistemas de integração e programação — sem precisar de contato direto.
-
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Artigos%20%26%20Bastidores-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/blancoconsultoria)
-
-Me conheça um pouco melhor e acompanhe artigos e publicações com um olhar diferente sobre problemas reais de engenharia.
-
-[![Instagram](https://img.shields.io/badge/Instagram-chef__j.blanco-E4405F?style=for-the-badge&logo=instagram&logoColor=white)](https://www.instagram.com/chef_j.blanco/)
-
-Pra gente se aproximar de verdade — e construir um legado junto.
-
-📧 [consultoriablanco8@gmail.com](mailto:consultoriablanco8@gmail.com) &nbsp;·&nbsp; 🌐 [chefblanco.com.br](https://chefblanco.com.br/)
-
-</div>
+`python/openops_web/tests` covers the web layer (permissions per role, input validation, injection attempts, path traversal, throttling, concurrency and a real-socket integration test), `python/openops_core/tests` and `python/openops_business/tests` cover the foundation and domain (including transactions and product archiving), and `test_project.py` covers the command line. The interface was additionally exercised in a real Chromium browser: login, one-click stock entry and exit, product removal, hostile product names rendered as plain text, language switch and a phone-sized viewport.

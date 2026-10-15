@@ -1,3 +1,4 @@
+# AI assistance (CS50 final-project policy): this file was written or modified with the AI assistant Claude (Anthropic). See README.md, section 6.
 """
 openops_core.config
 ====================
@@ -57,6 +58,14 @@ def _load_file(path: Path) -> dict[str, Any]:
         return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise ConfigError(f"Arquivo de configuração inválido em {path}: {exc}") from exc
+    except UnicodeDecodeError as exc:
+        # Arquivo salvo em ANSI/cp1252 (comum no Windows) em vez de UTF-8.
+        raise ConfigError(
+            f"O arquivo de configuração {path} não está em UTF-8. "
+            "Abra-o no editor e use Salvar como > Codificação: UTF-8."
+        ) from exc
+    except OSError as exc:
+        raise ConfigError(f"Não foi possível ler o arquivo de configuração {path}: {exc}") from exc
 
 
 def _load_env(prefix: str = _ENV_PREFIX) -> dict[str, Any]:

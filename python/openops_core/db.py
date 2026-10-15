@@ -1,3 +1,4 @@
+# AI assistance (CS50 final-project policy): this file was written or modified with the AI assistant Claude (Anthropic). See README.md, section 6.
 """
 openops_core.db
 ================
@@ -78,6 +79,7 @@ class Database:
         self.path = path
         self._conn: sqlite3.Connection | None = None
         self._lock = threading.RLock()
+        self._tx_depth = 0
 
     def connect(self) -> sqlite3.Connection:
         with self._lock:
@@ -162,20 +164,59 @@ class Database:
         return newly_applied
 
     def execute(self, sql: str, params: tuple[Any, ...] = ()) -> sqlite3.Cursor:
-        """Executa um statement (INSERT/UPDATE/DELETE) e comita."""
-        conn = self.connect()
-        cursor = conn.execute(sql, params)
-        conn.commit()
-        return cursor
+        """Executa um statement (INSERT/UPDATE/DELETE) e comita — exceto
+        dentro de :meth:`transaction`, onde o commit é adiado até o fim do
+        bloco.
+
+        Todo o acesso passa pelo ``RLock`` da instância: o micro-site roda
+        com várias threads (uma por requisição) compartilhando esta única
+        conexão SQLite, e sem esse lock duas requisições simultâneas
+        podiam intercalar ``execute``/``commit`` de forma imprevisível.
+        """
+        with self._lock:
+            conn = self.connect()
+            cursor = conn.execute(sql, params)
+            if self._tx_depth == 0:
+                conn.commit()
+            return cursor
 
     def query(self, sql: str, params: tuple[Any, ...] = ()) -> list[sqlite3.Row]:
-        """Executa um SELECT e devolve as linhas, com acesso por nome de coluna."""
-        conn = self.connect()
-        conn.row_factory = sqlite3.Row
-        try:
-            return conn.execute(sql, params).fetchall()
-        finally:
-            conn.row_factory = None
+        """Executa um SELECT e devolve as linhas, com acesso por nome de coluna.
+
+        Bug real corrigido aqui: ``row_factory`` é uma propriedade da
+        *conexão* (compartilhada). Sem o lock, uma thread restaurava
+        ``row_factory = None`` enquanto outra ainda precisava de
+        ``sqlite3.Row``, e a segunda recebia tuplas e quebrava com
+        ``TypeError`` em ``row["coluna"]`` — só sob concorrência.
+        """
+        with self._lock:
+            conn = self.connect()
+            conn.row_factory = sqlite3.Row
+            try:
+                return conn.execute(sql, params).fetchall()
+            finally:
+                conn.row_factory = None
+
+    @contextmanager
+    def transaction(self) -> Iterator["Database"]:
+        """Agrupa vários ``execute`` em uma única transação atômica: ou
+        tudo é gravado, ou nada. Reentrante (blocos aninhados comitam só
+        quando o mais externo termina com sucesso).
+        """
+        with self._lock:
+            conn = self.connect()
+            self._tx_depth += 1
+            try:
+                yield self
+            except BaseException:
+                self._tx_depth -= 1
+                if self._tx_depth == 0:
+                    conn.rollback()
+                raise
+            else:
+                self._tx_depth -= 1
+                if self._tx_depth == 0:
+                    conn.commit()
 
 
 @contextmanager

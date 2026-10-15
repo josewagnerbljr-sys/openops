@@ -34,11 +34,20 @@ Thumbs.db
 *.key
 config.json
 
-# Bancos de dados locais
+# Bancos de dados locais e arquivos gerados em tempo de execução pelo OpenOps
 *.db
 *.sqlite
 *.sqlite3
+*.db.secret
+openops.log
+openops.config.json
 
 # Mutation testing (mutmut)
 mutants/
 .mutmut-cache
+
+# Arquivos de trabalho que nunca sobem
+.hypothesis/
+response_*.json
+*.mp4
+

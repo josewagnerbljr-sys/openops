@@ -1,0 +1,9 @@
+OpenOps
+Copyright 2024-2026 José Wagner Blanco Júnior (https://github.com/josewagnerbljr-sys)
+
+Este produto é licenciado sob a Apache License, Version 2.0 (veja o arquivo LICENSE).
+This product is licensed under the Apache License, Version 2.0 (see the LICENSE file).
+
+Partes desta versão do projeto (micro-site, CLI openops.py, testes e documentação) foram
+escritas com assistência de IA (Claude, da Anthropic). A direção, os requisitos e a
+responsabilidade pelo projeto são do autor acima. Veja README.md, seção 6.

@@ -1,3 +1,4 @@
+# AI assistance (CS50 final-project policy): this file was written or modified with the AI assistant Claude (Anthropic). See README.md, section 6.
 import pytest
 from fastapi.testclient import TestClient
 
@@ -78,14 +79,21 @@ def test_viewer_cannot_create_product(anon_client):
     assert response.json()["error"] == "authorization_error"
 
 
+def _login(client, username, password="senha12345"):
+    return client.post("/auth/login", json={"username": username, "password": password}).json()["access_token"]
+
+
 def test_operator_can_create_product(anon_client):
     anon_client.post("/auth/register", json={"username": "admin", "password": "senha12345"})
-    anon_client.post(
-        "/auth/register", json={"username": "op", "password": "senha12345", "role": "operator"}
+    admin_token = _login(anon_client, "admin")
+    # criar um operator exige token de admin (ver teste de escalonamento abaixo)
+    created = anon_client.post(
+        "/auth/register",
+        json={"username": "op", "password": "senha12345", "role": "operator"},
+        headers={"Authorization": f"Bearer {admin_token}"},
     )
-    token = anon_client.post("/auth/login", json={"username": "op", "password": "senha12345"}).json()[
-        "access_token"
-    ]
+    assert created.status_code == 201
+    token = _login(anon_client, "op")
 
     response = anon_client.post(
         "/products",
@@ -94,6 +102,34 @@ def test_operator_can_create_product(anon_client):
     )
 
     assert response.status_code == 201
+
+
+def test_anonymous_cannot_register_privileged_role(anon_client):
+    """Regressão: antes, qualquer visitante podia se cadastrar como admin."""
+    anon_client.post("/auth/register", json={"username": "admin", "password": "senha12345"})
+
+    response = anon_client.post(
+        "/auth/register", json={"username": "intruso", "password": "senha12345", "role": "admin"}
+    )
+
+    assert response.status_code == 403
+    assert anon_client.post(
+        "/auth/login", json={"username": "intruso", "password": "senha12345"}
+    ).status_code == 403  # o usuário nem foi criado
+
+
+def test_non_admin_cannot_register_privileged_role(anon_client):
+    anon_client.post("/auth/register", json={"username": "admin", "password": "senha12345"})
+    anon_client.post("/auth/register", json={"username": "leitor", "password": "senha12345"})
+    viewer_token = _login(anon_client, "leitor")
+
+    response = anon_client.post(
+        "/auth/register",
+        json={"username": "x", "password": "senha12345", "role": "operator"},
+        headers={"Authorization": f"Bearer {viewer_token}"},
+    )
+
+    assert response.status_code == 403
 
 
 def test_me_endpoint_reflects_logged_in_user(anon_client):

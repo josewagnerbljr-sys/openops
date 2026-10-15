@@ -1,3 +1,4 @@
+# AI assistance (CS50 final-project policy): this file was written or modified with the AI assistant Claude (Anthropic). See README.md, section 6.
 """
 openops_core.logging
 =====================
@@ -12,6 +13,7 @@ from __future__ import annotations
 
 import json
 import logging as _stdlib_logging
+import os
 import sys
 from datetime import datetime, timezone
 from enum import Enum
@@ -86,8 +88,11 @@ class OpenOpsLogger:
         self._log(_stdlib_logging.ERROR, message, category, **fields)
 
 
-def configure_logging(level: str = "INFO") -> None:
-    """Configura o handler raiz do processo para emitir JSON em stdout.
+def configure_logging(level: str = "INFO", *, log_file: str | None = None) -> None:
+    """Configura o handler raiz do processo para emitir JSON em stdout e,
+    opcionalmente, também em um arquivo (``log_file``, ex.: ``openops.log``)
+    — o registro persistente que permite auditar o que foi feito depois que
+    o terminal foi fechado.
 
     Idempotente: chamadas repetidas não duplicam handlers.
     """
@@ -95,12 +100,22 @@ def configure_logging(level: str = "INFO") -> None:
     root = _stdlib_logging.getLogger()
     root.setLevel(level)
 
-    if any(isinstance(h.formatter, JsonFormatter) for h in root.handlers):
-        return
+    if not any(isinstance(h.formatter, JsonFormatter) and not isinstance(h, _stdlib_logging.FileHandler)
+               for h in root.handlers):
+        handler = _stdlib_logging.StreamHandler(stream=sys.stdout)
+        handler.setFormatter(JsonFormatter())
+        root.addHandler(handler)
 
-    handler = _stdlib_logging.StreamHandler(stream=sys.stdout)
-    handler.setFormatter(JsonFormatter())
-    root.addHandler(handler)
+    if log_file is not None:
+        wanted = os.path.abspath(log_file)
+        already = any(
+            isinstance(h, _stdlib_logging.FileHandler) and h.baseFilename == wanted
+            for h in root.handlers
+        )
+        if not already:
+            file_handler = _stdlib_logging.FileHandler(wanted, encoding="utf-8")
+            file_handler.setFormatter(JsonFormatter())
+            root.addHandler(file_handler)
 
 
 def get_logger(name: str) -> OpenOpsLogger:
